@@ -17,6 +17,13 @@ export function formatDateTime(iso: string | null | undefined) {
   });
 }
 
+export function formatDateOnly(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
 export function formatRelativeDay(iso: string | null | undefined) {
   if (!iso) return "No check-ins yet";
   const date = new Date(iso);

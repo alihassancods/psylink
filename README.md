@@ -109,7 +109,7 @@ for setup.
 - [x] F8 "Need help now?" link and footer notice on all patient screens
 - [x] F9 Patient history and settings (revoke, delete)
 - [x] F10 Clinician patient list with risk badges
-- [ ] F11 Patient detail: trend charts and timeline
+- [x] F11 Patient detail: trend charts and timeline
 - [ ] F12 Check-in detail with evidence highlight and AI label
 - [ ] F13 Alerts panel with acknowledge
 - [ ] F14 Loading, empty, and error states everywhere
