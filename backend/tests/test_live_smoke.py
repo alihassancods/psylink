@@ -10,10 +10,10 @@ a transcription round trip that cleans up after itself. Nothing here sends patie
 the prompts are synthetic and the audio is generated silence.
 """
 
+import io
 import os
 import struct
 import wave
-import io
 
 import pytest
 
