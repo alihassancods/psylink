@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DemoButtons } from "@/components/auth/demo-buttons";
 import { ApiError } from "@/lib/api";
 import { HOME_BY_ROLE, useSession } from "@/lib/auth/session-provider";
 
@@ -78,6 +80,17 @@ export function LoginForm() {
             {pending ? "Signing in…" : "Log in"}
           </Button>
         </form>
+
+        <div className="mt-4 flex justify-center">
+          <Link
+            className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4"
+            href="/signup"
+          >
+            Create a patient account
+          </Link>
+        </div>
+
+        <DemoButtons />
       </CardContent>
     </Card>
   );
