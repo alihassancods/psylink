@@ -187,12 +187,15 @@ async def test_code_formatting_is_tolerated(api_client, make_token, pair) -> Non
 
 
 async def test_a_patient_cannot_read_anyone_s_invites(api_client, make_token, pair) -> None:
-    await mint(api_client, make_token, pair["clinician"])
+    _, invite_id = await mint(api_client, make_token, pair["clinician"])
     # RLS gives patients no select policy on invites, so the route is not even reachable to
-    # list them; confirm nothing leaks through the redeem path either.
+    # list them. Scoped to this clinician: the dev database is shared, so counting every
+    # invite in the schema would depend on what other tests left behind.
     async with service_client() as db:
-        rows = await db.select("invites")
-    assert len(rows) == 1
+        rows = await db.select(
+            "invites", where="clinician_id = :c", params={"c": str(pair["clinician"])}
+        )
+    assert [r["id"] for r in rows] == [invite_id]
     assert "code" not in rows[0]
 
 

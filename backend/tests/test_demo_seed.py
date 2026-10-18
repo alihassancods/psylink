@@ -109,19 +109,52 @@ async def test_seed_writes_the_expected_volume_once_and_again() -> None:
     assert first["counts"]["checkins"] == first["counts"]["analyses"] >= 15
     assert first["counts"]["alerts"] == 1
 
+    # Scoped to the demo identities: the dev database is shared with every other suite, so a
+    # global count would assert on whatever unrelated rows happen to exist.
+    demo_ids = [str(u.id) for u in DEMO_USERS]
+    placeholders = ", ".join(f":d{i}" for i in range(len(demo_ids)))
+    params = {f"d{i}": v for i, v in enumerate(demo_ids)}
     async with service_client() as db:
-        assert await db.scalar("select count(*) from public.profiles") == 4
-        assert (
-            await db.scalar("select count(*) from public.analyses") == first["counts"]["analyses"]
+        profiles = await db.scalar(
+            f"select count(*) from public.profiles where id in ({placeholders})", **params
         )
+        patients = [str(u.id) for u in PATIENTS]
+        pph = ", ".join(f":p{i}" for i in range(len(patients)))
+        pparams = {f"p{i}": v for i, v in enumerate(patients)}
+        analyses = await db.scalar(
+            f"select count(*) from public.analyses where patient_id in ({pph})", **pparams
+        )
+    assert profiles == 4
+    assert analyses == first["counts"]["analyses"]
 
 
-async def test_purge_leaves_nothing_behind() -> None:
+async def test_purge_leaves_no_demo_rows_behind() -> None:
+    """Purging removes the demo dataset and everything that cascades from it.
+
+    Asserted against the demo ids, not the whole schema: other suites legitimately leave rows
+    in this shared database, and counting them here would make the test depend on run order.
+    """
     await seed_demo()
     await purge_demo()
+    ids = [str(u.id) for u in DEMO_USERS]
+    ph = ", ".join(f":d{i}" for i in range(len(ids)))
+    params = {f"d{i}": v for i, v in enumerate(ids)}
     async with service_client() as db:
-        for table in ("profiles", "consents", "checkins", "analyses", "alerts"):
-            assert await db.scalar(f"select count(*) from public.{table}") == 0, table
+        assert (
+            await db.scalar(f"select count(*) from public.profiles where id in ({ph})", **params)
+            == 0
+        )
+        for table, column in (
+            ("consents", "patient_id"),
+            ("consents", "clinician_id"),
+            ("checkins", "patient_id"),
+            ("analyses", "patient_id"),
+            ("alerts", "patient_id"),
+        ):
+            left = await db.scalar(
+                f"select count(*) from public.{table} where {column} in ({ph})", **params
+            )
+            assert left == 0, f"{table}.{column} still holds {left} demo rows"
 
 
 async def test_risk_column_uses_the_schema_enum_not_the_app_wording() -> None:
