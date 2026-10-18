@@ -100,7 +100,7 @@ typecheck and tests, tick the box here, and commit. See [`frontend/README.md`](f
 for setup.
 
 - [x] F1 Scaffold, Tailwind, shadcn, design tokens, .env.example
-- [ ] F2 Supabase auth, API client, role guards
+- [x] F2 Supabase auth, API client, role guards
 - [ ] F3 Login/signup with demo buttons
 - [ ] F4 Consent and invite-code screens
 - [ ] F5 Recorder with mic permission flow and typed fallback
