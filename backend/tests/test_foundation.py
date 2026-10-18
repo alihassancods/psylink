@@ -69,9 +69,7 @@ async def test_unhandled_exception_becomes_the_standard_shape(caplog) -> None:
             with caplog.at_level(logging.ERROR, logger="app.main"):
                 response = await raw_client.get("/_boom")
     finally:
-        app.router.routes = [
-            r for r in app.router.routes if getattr(r, "path", None) != "/_boom"
-        ]
+        app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != "/_boom"]
 
     assert response.status_code == 500
     detail = response.json()["detail"]

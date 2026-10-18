@@ -42,11 +42,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 
+from app.api.consent import has_active_consent
 from app.api.errors import api_error
 from app.core.config import get_settings
 from app.core.deps import CurrentUser, require_role
 from app.core.ratelimit import transcribe_limiter
-from app.services.db import user_client
 from app.services.stt.assemblyai_client import (
     AudioTooLong,
     EmptyTranscript,
@@ -140,22 +140,6 @@ async def _read_capped(request: Request, limit_bytes: int) -> bytes:
     return bytes(buffered)
 
 
-async def _has_active_consent(user: CurrentUser) -> bool:
-    """Does this patient have at least one unrevoked consent linking them to a clinician?
-
-    Read through the caller's own identity, so row-level security decides visibility rather
-    than this function trusting a token claim. An analysis is only useful to a clinician the
-    patient authorised, so no consent means no transcription.
-    """
-    async with user_client(user.token) as db:
-        row = await db.fetchrow(
-            "select 1 as present from public.consents "
-            "where patient_id = :patient_id and revoked_at is null limit 1",
-            patient_id=str(user.id),
-        )
-    return row is not None
-
-
 @router.post("", response_model=TranscribeResponse, status_code=200)
 async def transcribe_audio(
     request: Request,
@@ -202,7 +186,7 @@ async def transcribe_audio(
             status_code=429,
         )
 
-    if not await _has_active_consent(user):
+    if not await has_active_consent(user):
         raise api_error(
             "consent_required",
             "an active consent is required before audio can be transcribed",

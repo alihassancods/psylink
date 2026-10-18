@@ -25,6 +25,10 @@ ERROR_CODES = frozenset(
         "stt_failed",
         "checkin_required",
         "checkin_not_stored",
+        "invite_invalid",
+        "invite_not_stored",
+        "consent_not_found",
+        "consent_not_stored",
     }
 )
 
