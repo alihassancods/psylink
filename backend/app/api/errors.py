@@ -30,6 +30,7 @@ ERROR_CODES = frozenset(
         "invite_not_stored",
         "consent_not_found",
         "alert_not_found",
+        "patient_not_found",
         "consent_not_stored",
     }
 )
