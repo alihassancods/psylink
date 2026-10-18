@@ -115,7 +115,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     // Supabase fires INITIAL_SESSION on subscribe, so the first read happens in this callback
-    // rather than as a synchronous setState in the effect body.
+    // rather than as a synchronous setState in the effect body. A malformed URL or empty key is
+    // caught at module scope in env.ts, so building the client cannot throw here.
     const subscription = getSupabaseClient().auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session)) {
         setStatus("anonymous");
