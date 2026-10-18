@@ -153,8 +153,13 @@ SELF_HARM: Final[list[Trigger]] = [
     (_compile(r"self {G}harm\w*"), False),
     # A quantity of pills, not adherence: "I took my pills" must never fire.
     (_compile(r"(?:handful|packet|box|bottle) {g}of {g}(?:pills|tablets)"), False),
-    (_compile(r"took {g}(?:all {g}(?:my|the )?|a {g}full {g}box {g}of )?(?:pills|tablets) {g}"
-              r"(?:to {g}end|yesterday|last {g}night|again|on {g}\w+)"), False),
+    (
+        _compile(
+            r"took {g}(?:all {g}(?:my|the )?|a {g}full {g}box {g}of )?(?:pills|tablets) {g}"
+            r"(?:to {g}end|yesterday|last {g}night|again|on {g}\w+)"
+        ),
+        False,
+    ),
     (_compile(r"over\s?dos\w*"), False),
     (
         _compile(

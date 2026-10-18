@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    # The suite is not mocked at the database: RLS behaviour can only be proven against real
+    # roles, so CI starts a real Postgres and runs the migrations against it first.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: backend
+          POSTGRES_PASSWORD: backend
+          POSTGRES_DB: backend
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U backend -d backend"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Both names are set because conftest.py reads TEST_DATABASE_URL and appends it over
+      # DATABASE_URL, while alembic's env.py reads DATABASE_URL straight out of Settings.
+      DATABASE_URL: postgresql+asyncpg://backend:backend@127.0.0.1:5432/backend
+      TEST_DATABASE_URL: postgresql+asyncpg://backend:backend@127.0.0.1:5432/backend
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install locked dependencies
+        run: uv sync --frozen
+
+      - name: Migrate the test database
+        # If this fails, every test below is meaningless, so it runs first and loudly.
+        run: uv run alembic upgrade head
+
+      - name: Lint
+        run: uv run ruff check app tests scripts alembic/env.py
+
+      - name: Format
+        run: uv run ruff format --check app tests scripts
+
+      - name: Tests
+        # No API keys exist in CI, and none are needed: AssemblyAI and the provider are faked.
+        # The live smoke tests stay skipped behind RUN_LIVE_TESTS.
+        run: uv run pytest -q
+
+      - name: Safety evaluation (keyword floor, offline)
+        # Deterministic, no network. Fails the build if the floor misses a corpus high-risk item
+        # it used to catch. See docs/eval-results.md for the full-pipeline numbers.
+        run: uv run python scripts/eval_safety.py | tee /tmp/eval.txt
+      - name: Fail if the floor's recall dropped
+        run: |
+          set -euo pipefail
+          recall=$(grep -o 'Recall on high-risk items | \*\*[0-9]*%' /tmp/eval.txt | grep -oE '[0-9]+' | tail -1)
+          echo "keyword floor recall: ${recall}%"
+          if [ "${recall}" -lt 80 ]; then
+            echo "::error::keyword floor recall ${recall}% is below the 80% gate"
+            exit 1
+          fi
