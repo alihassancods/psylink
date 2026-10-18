@@ -13,10 +13,11 @@ model's alone, and whether crisis resources should show.
 """
 
 import logging
+from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, Field, model_validator
 
 from app.api.errors import api_error
@@ -24,9 +25,14 @@ from app.core.deps import CurrentUser, require_role
 from app.services.alerts import raise_high_risk_alert, store_analysis
 from app.services.analysis.pipeline import analyze_checkin
 from app.services.analysis.schemas import Analysis, AnalysisOutcome, RiskLevel, RiskSource
-from app.services.db import user_client
+from app.services.db import service_client, user_client
 
 logger = logging.getLogger(__name__)
+
+#: Schema enum values for `analyses.risk`, read back into the app's wording.
+DB_RISK_READ: dict[str, str] = {"low": "low", "medium": "moderate", "high": "high"}
+
+CheckinStatus = Literal["pending", "analyzed", "analysis_failed"]
 
 #: A transcript longer than this is not a spoken check-in; the frontend caps far earlier.
 MAX_TEXT_CHARS = 20_000
@@ -49,7 +55,7 @@ class CheckinIn(BaseModel):
 
 class CheckinResponse(BaseModel):
     checkin_id: UUID
-    status: Literal["analyzed", "analysis_failed"]
+    status: CheckinStatus
     analysis: Analysis | None
     final_risk: RiskLevel
     risk_source: RiskSource
@@ -161,3 +167,111 @@ async def create_checkin(
         risk_source=outcome.risk_source,
         show_crisis_resources=outcome.show_crisis_resources,
     )
+
+
+# --- patient history: list and delete ------------------------------------------------
+#
+# The list joins the newest analysis so a patient sees one row per check-in with whatever the
+# pipeline concluded. `risk` is read from the analysis row, which only the service can write —
+# a patient cannot talk their way to a lower risk level by editing anything here.
+
+
+class CheckinSummary(BaseModel):
+    checkin_id: UUID
+    created_at: datetime
+    transcript: str | None
+    note: str | None
+    status: CheckinStatus
+    risk: RiskLevel | None
+    summary: str | None
+
+
+class CheckinPage(BaseModel):
+    items: list[CheckinSummary]
+    limit: int
+    offset: int
+
+
+@router.get("", response_model=CheckinPage)
+async def list_checkins(
+    user: Annotated[CurrentUser, Depends(require_role("patient"))],
+    limit: int = Query(default=30, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=10_000),
+) -> CheckinPage:
+    """This patient's check-ins, newest first, each with its analysis if one exists."""
+    async with user_client(user.token) as db:
+        rows = await db.fetch(
+            """
+            select c.id, c.created_at, c.transcript, c.note, c.analysis_status,
+                   a.risk, a.summary
+            from public.checkins c
+            left join lateral (
+                select x.risk, x.summary
+                from public.analyses x
+                where x.checkin_id = c.id
+                order by x.created_at desc
+                limit 1
+            ) a on true
+            where c.patient_id = :patient_id
+            order by c.created_at desc
+            limit :limit offset :offset
+            """,
+            patient_id=str(user.id),
+            limit=limit,
+            offset=offset,
+        )
+    items = [
+        CheckinSummary(
+            checkin_id=row["id"],
+            created_at=row["created_at"],
+            transcript=row["transcript"],
+            note=row["note"],
+            status=row["analysis_status"],
+            # The column stores 'medium'; the API speaks 'moderate'. One mapping, both ways.
+            risk=DB_RISK_READ.get(row["risk"]) if row["risk"] else None,
+            summary=row["summary"],
+        )
+        for row in rows
+    ]
+    return CheckinPage(items=items, limit=limit, offset=offset)
+
+
+@router.delete("/{checkin_id}", status_code=204)
+async def delete_checkin(
+    checkin_id: UUID,
+    user: Annotated[CurrentUser, Depends(require_role("patient"))],
+) -> None:
+    """Delete one of the patient's own check-ins — and the analysis derived from it.
+
+    The analysis is removed too, through the service identity, because the patient cannot write
+    that table and because leaving a clinician-facing summary behind after the patient withdrew
+    the source would be the wrong default. Any alert keeps its row: it records that a clinician
+    was paged, which stays true.
+    """
+    # Ownership is settled first, by the patient's own identity: if the row is not theirs, RLS
+    # matches nothing and there is nothing left to delete.
+    async with user_client(user.token) as db:
+        owned = await db.fetchrow(
+            "select id from public.checkins where id = :checkin_id and patient_id = :patient_id",
+            checkin_id=str(checkin_id),
+            patient_id=str(user.id),
+        )
+    if owned is None:
+        raise api_error("checkin_not_found", "no check-in with that id", 404)
+
+    # Then the analysis — *before* the check-in goes. `analyses.checkin_id` is
+    # `on delete set null`, so deleting the check-in first would null the link out from under
+    # this query and leave an orphaned summary of words the patient just withdrew, still
+    # readable by a consented clinician. Alerts keep their own rows either way.
+    async with service_client() as db:
+        await db.execute(
+            "delete from public.analyses where checkin_id = :checkin_id",
+            checkin_id=str(checkin_id),
+        )
+
+    async with user_client(user.token) as db:
+        await db.execute(
+            "delete from public.checkins where id = :checkin_id and patient_id = :patient_id",
+            checkin_id=str(checkin_id),
+            patient_id=str(user.id),
+        )
