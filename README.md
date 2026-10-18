@@ -113,7 +113,7 @@ for setup.
 - [x] F12 Check-in detail with evidence highlight and AI label
 - [x] F13 Alerts panel with acknowledge
 - [x] F14 Loading, empty, and error states everywhere
-- [ ] F15 Mobile (360px) and accessibility pass
+- [x] F15 Mobile (360px) and accessibility pass
 - [ ] F16 Unit tests and smoke test
 - [ ] F17 Vercel deploy, tested on a phone
 

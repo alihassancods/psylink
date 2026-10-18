@@ -12,12 +12,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { SkipLink } from "@/components/layout/skip-link";
 import { CrisisCard } from "@/components/crisis/crisis-card";
 import { PATIENT_LANDING, useSession } from "@/lib/auth/session-provider";
 
 /**
  * Patient chrome. The "Need help now?" control and the not-emergency-care footer live here, so
- * every patient screen inherits them — nobody has to be mid-check-in to find them.
+ * every patient screen inherits them — nobody has to be mid-check-in to find them. The nav is its
+ * own row so the help control stays visible at 360px instead of pushing it off screen.
  */
 export function PatientShell({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useSession();
@@ -25,52 +27,59 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
+      <SkipLink />
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-2 px-4 py-2">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-2">
           <Link
             href={PATIENT_LANDING}
             className="inline-flex min-h-11 items-center text-base font-semibold"
           >
             Psylink
           </Link>
-          <nav aria-label="Patient" className="flex items-center gap-1">
+          <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="shrink-0 font-semibold text-primary">
+                Need help now?
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[85dvh] overflow-y-auto p-0">
+              <DialogHeader className="p-4 pb-0">
+                <DialogTitle className="sr-only">Crisis support</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Ways to reach a person or a service that can respond right now.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="p-4">
+                <CrisisCard variant="help" />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <nav aria-label="Patient" className="border-t border-border">
+          <div className="mx-auto flex w-full max-w-2xl gap-1 overflow-x-auto px-2">
             <NavLink href="/home">Home</NavLink>
+            <NavLink href="/checkin">Check-in</NavLink>
             <NavLink href="/history">History</NavLink>
             <NavLink href="/settings">Settings</NavLink>
-
-            <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="font-semibold text-primary">
-                  Need help now?
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-h-[85dvh] overflow-y-auto p-0">
-                <DialogHeader className="p-4 pb-0">
-                  <DialogTitle className="sr-only">Crisis support</DialogTitle>
-                  <DialogDescription className="sr-only">
-                    Ways to reach a person or service that can respond right now.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="p-4">
-                  <CrisisCard variant="help" />
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
               Sign out
-            </Button>
-          </nav>
-        </div>
+            </button>
+          </div>
+        </nav>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 outline-none">
         <p className="pb-4 text-sm text-muted-foreground">
           Hello{profile?.display_name ? `, ${profile.display_name}` : ""}. Only your psychologist or
           psychiatrist sees what you share.
         </p>
         {children}
-      </div>
+      </main>
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto w-full max-w-2xl space-y-1 px-4 py-4 text-sm text-muted-foreground">
@@ -85,7 +94,7 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
-      className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
       href={href}
     >
       {children}

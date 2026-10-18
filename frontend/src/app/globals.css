@@ -11,8 +11,14 @@
   --muted-foreground: #475569; /* slate-600 */
   --border: #e2e8f0; /* slate-200 */
   --input: #cbd5e1; /* slate-300 */
-  --ring: #0d9488; /* teal-600 */
-  --primary: #0d9488; /* teal-600 */
+  --ring: #0d9488; /* teal-600 — decorative focus, 3:1 is enough for a non-text indicator */
+  --accent: #0d9488; /* teal-600 — chart strokes and focus */
+  /*
+   * The palette asks for teal-600 as primary. White text on #0d9488 is 3.2:1, which fails the
+   * 4.5:1 requirement, so the interactive colour is teal-700 (#0f766e, 4.7:1 against white) and
+   * teal-600 stays as the accent. Same family, readable labels.
+   */
+  --primary: #0f766e; /* teal-700 */
   --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
@@ -43,6 +49,7 @@
   --color-ring: var(--ring);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-destructive: var(--destructive);

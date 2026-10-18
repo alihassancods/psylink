@@ -27,7 +27,7 @@ export function HomeView() {
       <Card className="bg-primary text-primary-foreground">
         <CardContent className="space-y-4 p-6">
           <h1 className="text-xl font-semibold text-balance">How have you been since we last spoke?</h1>
-          <p className="text-sm text-primary-foreground/90">
+          <p className="text-sm text-primary-foreground">
             About two minutes. You read the words before anything is submitted, and you can change
             them.
           </p>
