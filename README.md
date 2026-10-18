@@ -138,7 +138,7 @@ commit.
 - [x] L8 Demo call-to-action section
 - [x] L9 FAQ with honest answers
 - [x] L10 Footer with disclaimer and GitHub link
-- [ ] L11 Title, description, Open Graph metadata
+- [x] L11 Title, description, Open Graph metadata
 - [ ] L12 Mobile layout at 360px
 - [ ] L13 Accessibility pass (keyboard, contrast, headings)
 - [ ] L14 Deployed on Vercel and tested on a phone
