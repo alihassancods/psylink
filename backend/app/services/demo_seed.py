@@ -226,12 +226,20 @@ async def seed_demo(
     `raise_demo_alerts` seeds an open alert for the crisis patient so the clinician inbox is not
     empty during a demo. It is fake traffic on fake data — the real alert path is exercised by
     `tests/test_alerts.py` and by filing a check-in.
+
+    Purge and rewrite share one transaction. Splitting them once left a hosted database with
+    no demo data at all when a later column was found missing mid-seed: the purge committed,
+    the inserts rolled back. An interrupted run now leaves the previous demo set untouched.
     """
-    await purge_demo()
     anchor = today or datetime.now(UTC)
     counts = {"profiles": 0, "consents": 0, "checkins": 0, "analyses": 0, "alerts": 0}
 
     async with service_client() as db:
+        await db.execute(
+            "delete from public.profiles where id = any(cast(:ids as uuid[]))",
+            ids=[str(person.id) for person in (CLINICIAN, *PATIENTS)],
+        )
+
         for person in (CLINICIAN, *PATIENTS):
             await db.insert(
                 "profiles",

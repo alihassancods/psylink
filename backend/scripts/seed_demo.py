@@ -44,10 +44,13 @@ def _password_for(email: str) -> str:
 
 
 async def create_auth_users(*, url: str, service_key: str, password: str) -> list[dict[str, str]]:
-    """Create (or sign in the ids for) the demo auth users through GoTrue's admin API.
+    """Create (or repair) the demo auth users through GoTrue's admin API.
 
-    Already-existing emails are treated as success: re-running the seeder should not be blocked
-    by an account the dashboard already holds.
+    Matching ids are load-bearing: ``/auth/me`` looks the profile up by the token's ``sub``,
+    and profiles are keyed by the uuid this package derives from each email. So an email that
+    already exists with a *different* uid — one created by hand or by an earlier version of
+    this script — is deleted and recreated with the right id rather than left as a login that
+    signs in to nothing.
     """
     created: list[dict[str, str]] = []
     async with httpx.AsyncClient(
@@ -55,13 +58,30 @@ async def create_auth_users(*, url: str, service_key: str, password: str) -> lis
         headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
         timeout=15.0,
     ) as client:
+        listing = await client.get("/admin/users", params={"per_page": 500})
+        by_email: dict[str, str] = {}
+        if listing.status_code == 200:
+            for entry in listing.json().get("users", []):
+                email = (entry.get("email") or "").lower()
+                if email:
+                    by_email[email] = entry["id"]
+
         for user in DEMO_USERS:
+            want = str(user.id)
+            got = by_email.get(user.email.lower())
+            if got and got != want:
+                await client.delete(f"/admin/users/{got}")
+                got = None
+            if got:
+                created.append({"email": user.email, "id": "(exists)", "role": user.role})
+                continue
+
             response = await client.post(
                 "/admin/users",
                 json={
                     # GoTrue would assign a random uid; the seeded profile's id is uuid5-derived
                     # and /auth/me looks it up by token sub, so the uid must be forced to match.
-                    "id": str(user.id),
+                    "id": want,
                     "email": user.email,
                     "password": password,
                     "email_confirm": True,
@@ -75,7 +95,7 @@ async def create_auth_users(*, url: str, service_key: str, password: str) -> lis
                 created.append(
                     {
                         "email": user.email,
-                        "id": f"(exists — must be {user.id} or /auth/me will 401)",
+                        "id": f"(exists — must be {want} or /auth/me will 401)",
                         "role": user.role,
                     }
                 )

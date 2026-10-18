@@ -28,6 +28,19 @@ class CurrentUser(BaseModel):
     token: str
 
 
+class AuthIdentity(BaseModel):
+    """A verified token holder with no profile yet — enough to bootstrap one, nothing more.
+
+    Only routes that create or repair the caller's own ``profiles`` row may use it; anything
+    that reads application data must go through :class:`CurrentUser` so the role is consulted.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID
+    token: str
+
+
 def _unauthorized(detail: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -85,6 +98,36 @@ async def get_current_user(
 
 
 CurrentUserDependency = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+async def get_auth_identity(request: Request) -> AuthIdentity:
+    """Verify the bearer token without requiring a profile row.
+
+    This is the onboarding door: it proves who the caller is so ``POST /api/profiles/me``
+    can create exactly that caller's own patient profile. It deliberately grants nothing
+    else — no application data is readable without a profile-backed ``CurrentUser``.
+    """
+    token = _bearer_token(request)
+
+    try:
+        claims = await verify_token(token)
+    except AuthConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="authentication is not configured on this server",
+        ) from exc
+    except AuthError as exc:
+        raise _unauthorized(str(exc)) from exc
+
+    try:
+        user_id = UUID(str(claims["sub"]))
+    except (KeyError, ValueError) as exc:
+        raise _unauthorized("token subject is not a user id") from exc
+
+    return AuthIdentity(id=user_id, token=token)
+
+
+AuthIdentityDependency = Annotated[AuthIdentity, Depends(get_auth_identity)]
 
 
 def require_role(*roles: UserRole | str) -> Callable[..., Coroutine[Any, Any, CurrentUser]]:

@@ -1,10 +1,16 @@
 """Verification of Supabase-issued JWTs.
 
-Hosted Supabase projects sign access tokens with RS256 and publish the matching public
-keys at ``<project>/auth/v1/.well-known/jwks.json``; self-hosted or legacy GoTrue uses
-HS256 with a shared secret. Which key source applies is decided by configuration, never
-by the token's own ``alg`` header, so a client cannot downgrade RS256 verification into
-HMAC-signed-with-the-public-key.
+Hosted Supabase projects sign access tokens with RS256 or, on newer projects, ES256, and
+publish the matching public keys at ``<project>/auth/v1/.well-known/jwks.json``; self-hosted
+or legacy GoTrue uses HS256 with a shared secret. Which key source applies is decided by
+configuration, never by the token's own ``alg`` header, so a client cannot downgrade RS256
+verification into HMAC-signed-with-the-public-key. The accepted algorithms come from the
+key's own type (RSA→RS256, EC→ES256), never from the token either.
+
+A project can outlive its HS256 secret: Supabase keeps ``SUPABASE_JWT_SECRET`` populated even
+after a project moves to JWKS-signed tokens, and a stale secret would then reject every real
+login. So when a JWKS URI is configured it wins, and the shared secret is the fallback for
+deployments that deliberately left the URI out.
 """
 
 import asyncio
@@ -64,18 +70,18 @@ async def verify_token(token: str) -> dict[str, Any]:
 
 
 async def _resolve_key(token: str, settings: Settings) -> tuple[Any, list[str]]:
-    if settings.supabase_jwt_secret:
-        return settings.supabase_jwt_secret, ["HS256"]
-
     if settings.supabase_jwks_uri:
         try:
             kid = jwt.get_unverified_header(token).get("kid")
         except PyJWTError as exc:
             raise AuthError("token is not a well-formed JWT") from exc
-        jwk = await _JWKS.key_for(kid, settings.supabase_jwks_uri)
-        if jwk is None:
+        entry = await _JWKS.key_for(kid, settings.supabase_jwks_uri)
+        if entry is None:
             raise AuthError("no verification key matches this token")
-        return jwk, ["RS256"]
+        return entry
+
+    if settings.supabase_jwt_secret:
+        return settings.supabase_jwt_secret, ["HS256"]
 
     raise AuthConfigurationError(
         "no Supabase verification key configured: set SUPABASE_JWKS_URI or SUPABASE_JWT_SECRET"
@@ -91,11 +97,13 @@ class _JwksCache:
 
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
-        self._keys: dict[str, PyJWK] = {}
+        self._keys: dict[str, tuple[PyJWK, list[str]]] = {}
         self._uri: str = ""
         self._fetched_at: float = 0.0
 
-    async def key_for(self, kid: str | None, uri: str) -> PyJWK | None:
+    async def key_for(
+        self, kid: str | None, uri: str
+    ) -> tuple[PyJWK, list[str]] | None:
         for force_refresh in (False, True):
             async with self._lock:
                 if force_refresh or self._uri != uri or self._is_stale():
@@ -108,9 +116,9 @@ class _JwksCache:
                     return None
                 return next(iter(self._keys.values()))
 
-            key = self._keys.get(kid)
-            if key is not None:
-                return key
+            entry = self._keys.get(kid)
+            if entry is not None:
+                return entry
 
         return None
 
@@ -118,7 +126,12 @@ class _JwksCache:
         return (time.monotonic() - self._fetched_at) > JWKS_TTL_SECONDS
 
 
-async def _fetch_jwks(uri: str) -> dict[str, PyJWK]:
+#: The one signature algorithm each published key type is allowed to verify with. Chosen by
+#: the key, never by the token header, so a header cannot steer verification.
+_KTY_ALGORITHMS = {"RSA": ["RS256"], "EC": ["ES256"]}
+
+
+async def _fetch_jwks(uri: str) -> dict[str, tuple[PyJWK, list[str]]]:
     try:
         async with httpx.AsyncClient(timeout=JWKS_TIMEOUT_SECONDS) as client:
             response = await client.get(uri)
@@ -130,15 +143,18 @@ async def _fetch_jwks(uri: str) -> dict[str, PyJWK]:
     if not isinstance(document, dict):
         raise AuthConfigurationError(f"JWKS document at {uri} is not an object")
 
-    keys: dict[str, PyJWK] = {}
+    keys: dict[str, tuple[PyJWK, list[str]]] = {}
     for index, entry in enumerate(document.get("keys", [])):
         if not isinstance(entry, dict) or entry.get("use", "sig") != "sig":
             continue
+        algorithms = _KTY_ALGORITHMS.get(entry.get("kty", ""))
+        if algorithms is None:
+            continue
         try:
-            jwk = PyJWK(entry, algorithm="RS256")
+            jwk = PyJWK(entry, algorithm=algorithms[0])
         except InvalidKeyError, PyJWTError:
             continue
-        keys[entry.get("kid") or f"anon-{index}"] = jwk
+        keys[entry.get("kid") or f"anon-{index}"] = (jwk, algorithms)
 
     return keys
 

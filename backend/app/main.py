@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api import alerts, checkins, clinician, consent, transcribe
+from app.api import alerts, checkins, clinician, consent, profiles, transcribe
 from app.core.config import cors_origins, get_settings
 from app.core.deps import CurrentUser, get_current_user
 from app.db.session import engine, get_db
@@ -68,6 +68,7 @@ async def unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
 app.include_router(alerts.router)
 app.include_router(clinician.router)
 app.include_router(consent.router)
+app.include_router(profiles.router)
 app.include_router(checkins.router)
 app.include_router(transcribe.router)
 

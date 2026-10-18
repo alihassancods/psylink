@@ -32,6 +32,10 @@ ERROR_CODES = frozenset(
         "alert_not_found",
         "patient_not_found",
         "consent_not_stored",
+        "profile_exists",
+        "profile_not_found",
+        "profile_not_stored",
+        "display_name_required",
     }
 )
 
