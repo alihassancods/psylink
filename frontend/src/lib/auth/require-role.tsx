@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorPanel, PageLoading } from "@/components/states";
 import { MisconfiguredNotice } from "@/components/auth/misconfigured-notice";
 import { ApiError, api } from "@/lib/api";
-import { useSession } from "@/lib/auth/session-provider";
+import { PATIENT_LANDING, useSession } from "@/lib/auth/session-provider";
 
 /**
  * Route guards. The role always comes from `/auth/me` (a `profiles` row), never from a token
@@ -142,7 +142,7 @@ function RequireRoleInner({ role, requireConsent, children }: RequireRoleProps) 
   if (status === "anonymous") {
     redirect = "/login";
   } else if (status === "authenticated" && profile && profile.role !== role) {
-    redirect = profile.role === "patient" ? "/home" : "/patients";
+    redirect = profile.role === "patient" ? PATIENT_LANDING : "/patients";
   } else if (gateConsent && !exempt && consent.status === "ready" && !consent.hasConsent) {
     redirect = "/consent";
   }

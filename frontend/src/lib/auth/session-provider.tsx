@@ -24,8 +24,14 @@ export const DEMO_EMAILS: Record<Role, string> = {
   clinician: "demo.clinician@bridge.example",
 };
 
+/**
+ * Where a patient is sent after sign-in. `/home` arrives with F9; until then the consent screen is
+ * the only patient surface, and pointing at a route that does not exist yet would 404.
+ */
+export const PATIENT_LANDING = "/consent";
+
 export const HOME_BY_ROLE: Record<Role, string> = {
-  patient: "/home",
+  patient: PATIENT_LANDING,
   clinician: "/patients",
 };
 
