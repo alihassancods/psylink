@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import checkins, transcribe
 from app.core.config import get_settings
 from app.core.deps import CurrentUser, get_current_user
 from app.db.session import engine, get_db
@@ -18,6 +19,9 @@ async def lifespan(app: FastAPI):
 
 settings = get_settings()
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+
+app.include_router(checkins.router)
+app.include_router(transcribe.router)
 
 
 @app.get("/health")

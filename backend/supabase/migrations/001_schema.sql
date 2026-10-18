@@ -24,6 +24,14 @@ begin
     ) then
         create type public.risk_level as enum ('low', 'medium', 'high');
     end if;
+
+    if not exists (
+        select 1 from pg_type t
+        join pg_namespace n on n.oid = t.typnamespace
+        where n.nspname = 'public' and t.typname = 'checkin_analysis_status'
+    ) then
+        create type public.checkin_analysis_status as enum ('pending', 'analyzed', 'analysis_failed');
+    end if;
 end
 $$;
 
@@ -97,7 +105,29 @@ create table if not exists public.checkins (
 create index if not exists checkins_patient_created_idx
     on public.checkins (patient_id, created_at desc);
 
-comment on table public.checkins is 'Daily patient check-in; the newest rows drive analysis.';
+-- Added as guarded alters (same pattern as consents' check) so a database that already has
+-- `checkins` picks them up, while a fresh one gets the identical end state.
+--
+-- `analysis_status` starts every row at 'pending': the check-in is stored before anything is
+-- analysed, so a model outage can never lose what the patient submitted. `transcript` holds
+-- the patient's own words (typed, or the speech-to-text text they approved in the editor) —
+-- the audio itself is never stored anywhere.
+alter table public.checkins add column if not exists analysis_status
+    public.checkin_analysis_status not null default 'pending';
+alter table public.checkins add column if not exists transcript text;
+
+comment on column public.checkins.analysis_status is
+    'pending until the pipeline finishes; analyzed or analysis_failed records what happened.';
+comment on column public.checkins.transcript is
+    'The patient-approved words that were analysed. Audio is never stored.';
+
+-- The queue a worker or a retry pass would read.
+create index if not exists checkins_pending_idx
+    on public.checkins (created_at)
+    where analysis_status = 'pending';
+
+comment on table public.checkins is
+    'Daily patient check-in; the newest rows drive analysis. Status tracks the pipeline.';
 
 -- ── analyses ───────────────────────────────────────────────────────────────────────────────────
 -- Written by the analysis pipeline through service_client(); nobody reading through

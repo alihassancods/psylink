@@ -49,55 +49,120 @@ SUICIDAL: Final[list[Trigger]] = [
     (_compile(r"take {G}my {G}own {G}(?:life|breath)"), False),
     # "suicide"/"suicidal" plus common misspellings, kept narrow so "suit"/"separate" miss.
     (_compile(r"\bsui(?:c|d)\w* | \bsua(?:c|d)\w* | \bsuiac\w* | \bsuicid\w*"), False),
-    (_compile(r"(?:want|wanna|plann?ing|plan|mean)(?:s|ed|ing)? {g}to {g}(?:die|be {g}dead|"
-              r"cease {g}to {g}exist|drop {g}dead)"), False),
+    (
+        _compile(
+            r"(?:want|wanna|plann?ing|plan|mean)(?:s|ed|ing)? {g}to {g}(?:die|be {g}dead|"
+            r"cease {g}to {g}exist|drop {g}dead)"
+        ),
+        False,
+    ),
     (_compile(r"(?:dying|dead) {g}inside"), False),
     (_compile(r"(?:i'?m|i {g}am|we'?re) {g}dying\b"), False),
-    (_compile(r"wish(?:ed)? {g}i {g}(?:was|were|had {g}never|never {g}was) "
-              r"{g}(?:dead|been {g}dead|never {g}born|existed)"), False),
+    (
+        _compile(
+            r"wish(?:ed)? {g}i {g}(?:was|were|had {g}never|never {g}was) "
+            r"{g}(?:dead|been {g}dead|never {g}born|existed)"
+        ),
+        False,
+    ),
     (_compile(r"better {g}off {g}dead"), False),
     # Passive ideation: preferring non-existence, wishing to be gone.
     (_compile(r"(?:i'?d|would|we'?re) {g}rather {g}be {g}(?:dead|gone|not {g}here)"), False),
     (_compile(r"(?:i'?m|im) {g}(?:glad|sorry|happier) {g}(?:dead|gone)"), False),
-    (_compile(r"wish {g}i {g}(?:wasn'?t|weren'?t|was {g}not|were {g}not) {g}(?:here|alive|"
-              r"born|existing)"), False),
-    (_compile(r"(?:going {g}to|planned? {g}to|planning {g}to|intend(?:s|ed)? {g}to|"
-              r"thinking {g}about|considering) {g}(?:killing|kill|die|dying|ending)"), False),
+    (
+        _compile(
+            r"wish {g}i {g}(?:wasn'?t|weren'?t|was {g}not|were {g}not) {g}(?:here|alive|"
+            r"born|existing)"
+        ),
+        False,
+    ),
+    (
+        _compile(
+            r"(?:going {g}to|planned? {g}to|planning {g}to|intend(?:s|ed)? {g}to|"
+            r"thinking {g}about|considering) {g}(?:killing|kill|die|dying|ending)"
+        ),
+        False,
+    ),
     (_compile(r"suicide {g}(?:note|method|methods|pills?|plan|attempt|urge|thoughts?)"), False),
     # Negation-immune: the negation is the content.
-    (_compile(r"(?:don'?t|does {g}not|do {g}not|didn'?t|can'?t|cannot|won'?t|would {g}not|"
-              r"never|not) {g}want {g}to {g}(?:live|be {g}alive|be {g}here|go {g}on|"
-              r"exist|wake {g}up|survive)"), True),
-    (_compile(r"(?:don'?t|doesn'?t|do {g}not|no) {g}(?:want|need|reason) {g}to {g}(?:live|go {g}on|"
-              r"being? {g}here|exist)"), True),
-    (_compile(r"no {G}(?:reason|point|purpose|meaning|way) {g}to {g}(?:live|be {g}here|"
-              r"go {g}on|going {g}on|keep {g}living|exist)"), True),
-    (_compile(r"(?:too|way {g}too) {g}(?:tired|sad|low|much) {g}to {g}(?:live|go {g}on|"
-              r"keep {g}living|stay)"), True),
+    (
+        _compile(
+            r"(?:don'?t|does {g}not|do {g}not|didn'?t|can'?t|cannot|won'?t|would {g}not|"
+            r"never|not) {g}want {g}to {g}(?:live|be {g}alive|be {g}here|go {g}on|"
+            r"exist|wake {g}up|survive)"
+        ),
+        True,
+    ),
+    (
+        _compile(
+            r"(?:don'?t|doesn'?t|do {g}not|no) {g}(?:want|need|reason) {g}to {g}(?:live|go {g}on|"
+            r"being? {g}here|exist)"
+        ),
+        True,
+    ),
+    (
+        _compile(
+            r"no {G}(?:reason|point|purpose|meaning|way) {g}to {g}(?:live|be {g}here|"
+            r"go {g}on|going {g}on|keep {g}living|exist)"
+        ),
+        True,
+    ),
+    (
+        _compile(
+            r"(?:too|way {g}too) {g}(?:tired|sad|low|much) {g}to {g}(?:live|go {g}on|"
+            r"keep {g}living|stay)"
+        ),
+        True,
+    ),
     (_compile(r"not {g}sure {g}i {g}want {g}to {g}(?:live|be {g}here|go {g}on)"), True),
 ]
 
 # Self-harm.
 SELF_HARM: Final[list[Trigger]] = [
-    (_compile(r"(?:hurt|harm|burn|hit|beat|scratch|slap|punch|chop|injure)(?:ing|s|ed)? "
-              r"{G}my {G}self | cut(?:ting|s)? {G}my {G}self"), False),
+    (
+        _compile(
+            r"(?:hurt|harm|burn|hit|beat|scratch|slap|punch|chop|injure)(?:ing|s|ed)? "
+            r"{G}my {G}self | cut(?:ting|s)? {G}my {G}self"
+        ),
+        False,
+    ),
     (_compile(r"self {G}harm\w*"), False),
     (_compile(r"over\s?dos\w*"), False),
-    (_compile(r"swallow(?:ed|ing|s)? {g}(?:all {G}the {g})?(?:pills?|tablets?|"
-              r"medication|medicine|them {g}all)"), False),
+    (
+        _compile(
+            r"swallow(?:ed|ing|s)? {g}(?:all {G}the {g})?(?:pills?|tablets?|"
+            r"medication|medicine|them {g}all)"
+        ),
+        False,
+    ),
     (_compile(r"(?:stop|can'?t {g}stop|keep) {g}cutting {G}myself"), False),
 ]
 
 # Risk of harming others.
 HARMING_OTHERS: Final[list[Trigger]] = [
-    (_compile(r"kill(?:ing|ed|s)? {g}(?:someone|somebody|him|her|them|people|others|"
-              r"everybody|everyone|a {g}person|my {g}(?:family|kids?|children|son|daughter|"
-              r"mother|father|wife|husband|ex|roommate|sibling|brother|sister))"), False),
-    (_compile(r"(?:hurt|harm|attack|poison|kill)(?:s|ing|ed)? {g}(?:someone|somebody|him|her|"
-              r"them|people|others|my {g}(?:family|kids?|children|son|daughter|mother|father|"
-              r"wife|husband|ex|roommate|sibling|brother|sister))"), False),
-    (_compile(r"(?:going {g}to|planned? {g}to|planning {g}to|intend(?:s|ed)? {g}to) {g}"
-              r"(?:hurt|harm|attack|poison)"), False),
+    (
+        _compile(
+            r"kill(?:ing|ed|s)? {g}(?:someone|somebody|him|her|them|people|others|"
+            r"everybody|everyone|a {g}person|my {g}(?:family|kids?|children|son|daughter|"
+            r"mother|father|wife|husband|ex|roommate|sibling|brother|sister))"
+        ),
+        False,
+    ),
+    (
+        _compile(
+            r"(?:hurt|harm|attack|poison|kill)(?:s|ing|ed)? {g}(?:someone|somebody|him|her|"
+            r"them|people|others|my {g}(?:family|kids?|children|son|daughter|mother|father|"
+            r"wife|husband|ex|roommate|sibling|brother|sister))"
+        ),
+        False,
+    ),
+    (
+        _compile(
+            r"(?:going {g}to|planned? {g}to|planning {g}to|intend(?:s|ed)? {g}to) {g}"
+            r"(?:hurt|harm|attack|poison)"
+        ),
+        False,
+    ),
 ]
 
 TRIGGERS: Final[list[Trigger]] = [*SUICIDAL, *SELF_HARM, *HARMING_OTHERS]
@@ -107,19 +172,27 @@ IDIOMS: Final[list[re.Pattern[str]]] = [
     _compile(r"(?:is|was|were|'s|'ll) {g}killing {g}(?:me|us)\b"),
     _compile(r"this [a-z]+ {g}is {g}killing {g}me"),
     _compile(r"killing {g}it\b"),
-    _compile(r"kill(?:s|ing)? {g}the {g}(?:time|day|night|moment|ballpark|two {g}birds|"
-             r"rope|light|lights)"),
+    _compile(
+        r"kill(?:s|ing)? {g}the {g}(?:time|day|night|moment|ballpark|two {g}birds|"
+        r"rope|light|lights)"
+    ),
     _compile(r"(?:would|will|gonna|going {g}to) {g}die {g}for"),
-    _compile(r"dying {g}(?:to|for|of) {g}(?:a|an|the|some|my)? {G}(?:see|meet|have|get|try|"
-             r"know|go|coffee|cake|pizza|chocolate|nap|sleep|vacation|holiday|weekend|"
-             r"laughter|boredom|embarrassment|first)"),
-    _compile(r"(?:scared|bored|worked|starved|tired|exhausted|beat|busted|worn|jumped|"
-             r"screamed|laughed) {g}to {g}death"),
+    _compile(
+        r"dying {g}(?:to|for|of) {g}(?:a|an|the|some|my)? {G}(?:see|meet|have|get|try|"
+        r"know|go|coffee|cake|pizza|chocolate|nap|sleep|vacation|holiday|weekend|"
+        r"laughter|boredom|embarrassment|first)"
+    ),
+    _compile(
+        r"(?:scared|bored|worked|starved|tired|exhausted|beat|busted|worn|jumped|"
+        r"screamed|laughed) {g}to {g}death"
+    ),
     _compile(r"death {g}of {g}(?:me|us)"),
-    _compile(r"(?:exam|test|interview|deadline|work|study|class|homework|thesis|paper|shift|"
-             r"holiday|shopping|travel|flight|journey|queue|heat|cold|weather|noise|traffic|"
-             r"smoke|humidity|run|gym|exercise|meeting|movie|joke|game)\w* [a-z ]{{0,20}} "
-             r"{g}to {g}death"),
+    _compile(
+        r"(?:exam|test|interview|deadline|work|study|class|homework|thesis|paper|shift|"
+        r"holiday|shopping|travel|flight|journey|queue|heat|cold|weather|noise|traffic|"
+        r"smoke|humidity|run|gym|exercise|meeting|movie|joke|game)\w* [a-z ]{{0,20}} "
+        r"{g}to {g}death"
+    ),
 ]
 
 # Cues that cancel a trigger when they govern the same clause. Bare "no"/"over"/"done" are

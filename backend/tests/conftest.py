@@ -15,6 +15,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
 
 import jwt
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from app.core import security
@@ -94,3 +95,52 @@ async def seed_profile() -> AsyncIterator[SeedProfile]:
     async with SessionLocal() as session:
         await session.execute(delete(Profile).where(Profile.id.in_(created)))
         await session.commit()
+
+
+SeedConsent = Callable[..., Awaitable[UUID]]
+
+
+@pytest.fixture
+async def api_client() -> AsyncIterator[AsyncClient]:
+    """An HTTP client over the real application, so router wiring is part of the test."""
+    from app.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        yield client
+
+
+@pytest.fixture
+async def seed_consent() -> AsyncIterator[SeedConsent]:
+    """Grant one profile access to another's data, committed for other transactions to see.
+
+    Teardown is not needed: consents cascade from `profiles`, and `seed_profile` removes the
+    profiles it created.
+    """
+
+    async def factory(patient_id: UUID | str, clinician_id: UUID | str) -> UUID:
+        from app.services.db import service_client
+
+        async with service_client() as db:
+            row = await db.insert(
+                "consents",
+                {"patient_id": str(patient_id), "clinician_id": str(clinician_id)},
+                returning=("id",),
+            )
+        assert row is not None
+        return row["id"]
+
+    yield factory
+
+
+@pytest.fixture
+def rows_for() -> Callable[..., Awaitable[list[dict[str, Any]]]]:
+    """Read rows as the service identity — assertions about what actually got stored."""
+
+    async def fetch(table: str, /, *, where: str, **params: Any) -> list[dict[str, Any]]:
+        from app.services.db import service_client
+
+        async with service_client() as db:
+            return await db.fetch(f"select * from public.{table} where {where}", **params)
+
+    return fetch

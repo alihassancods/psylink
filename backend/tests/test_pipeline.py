@@ -17,8 +17,15 @@ def llm_json(**overrides: Any) -> str:
     base = {
         "mood_score": 4,
         "emotions": ["sad"],
-        "symptoms": {"sleep": 2, "appetite": None, "energy": None, "anxiety": None,
-                     "concentration": None, "social_withdrawal": None, "irritability": None},
+        "symptoms": {
+            "sleep": 2,
+            "appetite": None,
+            "energy": None,
+            "anxiety": None,
+            "concentration": None,
+            "social_withdrawal": None,
+            "irritability": None,
+        },
         "risk_level": "low",
         "risk_evidence": None,
         "summary": "The patient reports low mood and poor sleep since the term started.",
