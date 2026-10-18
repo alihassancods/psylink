@@ -8,7 +8,7 @@ Psylink is a daily voice check-in for people living with a mental-health conditi
 
 > **All demo data is synthetic.** Every check-in text, patient name, and evaluation example in this repository was invented for the demo. No real patient audio or text exists here.
 
-**Live demo:** https://psylink-eight.vercel.app
+**Live demo:** https://psylink.alihassancodes.com/
 
 Use the **Try as patient** and **Try as psychologist** buttons. If the backend has been idle, the first request can take about a minute while the free host wakes up.
 
