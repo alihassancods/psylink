@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
-import { useSession } from "@/lib/auth/session-provider";
+import { PATIENT_LANDING, useSession } from "@/lib/auth/session-provider";
 
 /**
  * Self-service signup creates patient accounts only. The database's insert policy allows a
@@ -43,7 +43,7 @@ export function SignupForm() {
         setPending(false);
         return;
       }
-      router.replace("/consent");
+      router.replace(PATIENT_LANDING);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "We could not create your account.");
       setPending(false);

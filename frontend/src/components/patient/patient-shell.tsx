@@ -34,12 +34,9 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
             Psylink
           </Link>
           <nav aria-label="Patient" className="flex items-center gap-1">
-            <Link
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-              href="/checkin"
-            >
-              Check-in
-            </Link>
+            <NavLink href="/home">Home</NavLink>
+            <NavLink href="/history">History</NavLink>
+            <NavLink href="/settings">Settings</NavLink>
 
             <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
               <DialogTrigger asChild>
@@ -82,5 +79,16 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      href={href}
+    >
+      {children}
+    </Link>
   );
 }

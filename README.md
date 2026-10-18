@@ -107,7 +107,7 @@ for setup.
 - [x] F6 Transcript review and submit
 - [x] F7 Result screen and crisis card
 - [x] F8 "Need help now?" link and footer notice on all patient screens
-- [ ] F9 Patient history and settings (revoke, delete)
+- [x] F9 Patient history and settings (revoke, delete)
 - [ ] F10 Clinician patient list with risk badges
 - [ ] F11 Patient detail: trend charts and timeline
 - [ ] F12 Check-in detail with evidence highlight and AI label
