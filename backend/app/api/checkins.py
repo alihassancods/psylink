@@ -63,6 +63,14 @@ def text_to_analyse(payload: CheckinIn) -> str:
     )
 
 
+#: Database errors are reported by exception class and nothing else. SQLAlchemy formats a
+#: failed statement as ``... [SQL: ...] [parameters: (...)]``, and the bound parameters here
+#: are the patient's own words — so even a truncated message is a leak. The class name plus
+#: the request context is enough to diagnose; the transcript never leaves the row.
+def _db_failure(exc: BaseException) -> str:
+    return type(exc).__name__
+
+
 async def _alert_if_high(
     outcome: AnalysisOutcome, patient_id: UUID, analysis_id: str | None
 ) -> None:
@@ -71,8 +79,8 @@ async def _alert_if_high(
         return
     try:
         await raise_high_risk_alert(str(patient_id), analysis_id)
-    except Exception:  # alerting failure must never corrupt a stored check-in
-        logger.exception("failed to raise a high-risk alert for a stored check-in")
+    except Exception as exc:  # alerting failure must never corrupt a stored check-in
+        logger.error("could not raise a high-risk alert: %s", _db_failure(exc))
 
 
 @router.post("", response_model=CheckinResponse, status_code=201)
@@ -89,18 +97,26 @@ async def create_checkin(
     source = "voice" if (payload.transcript or "").strip() else "typed"
 
     # 1. Persist before analysing. Its own transaction, committed when the block exits.
-    async with user_client(user.token) as db:
-        row = await db.insert(
-            "checkins",
-            {
-                "patient_id": str(user.id),
-                "answers": {"source": source},
-                "note": (payload.note or "").strip() or None,
-                "transcript": (payload.transcript or "").strip() or None,
-                "analysis_status": "pending",
-            },
-            returning=("id",),
-        )
+    #    A failure here is reported by exception class only: this is the statement that
+    #    binds the patient's words, and SQLAlchemy would otherwise echo them in its error.
+    try:
+        async with user_client(user.token) as db:
+            row = await db.insert(
+                "checkins",
+                {
+                    "patient_id": str(user.id),
+                    "answers": {"source": source},
+                    "note": (payload.note or "").strip() or None,
+                    "transcript": (payload.transcript or "").strip() or None,
+                    "analysis_status": "pending",
+                },
+                returning=("id",),
+            )
+    except Exception as exc:
+        logger.error("could not store the check-in: %s", _db_failure(exc))
+        raise api_error(
+            "checkin_not_stored", "check-in could not be stored", status_code=500
+        ) from exc
     if row is None:  # pragma: no cover - RLS raises rather than silently dropping a row
         raise api_error("checkin_not_stored", "check-in could not be stored", status_code=500)
     checkin_id = UUID(str(row["id"]))
@@ -116,20 +132,23 @@ async def create_checkin(
         analysis_id = await store_analysis(
             patient_id=str(user.id), checkin_id=str(checkin_id), outcome=outcome
         )
-    except Exception:  # analysis row is secondary; the check-in is the thing that must exist
+    except Exception as exc:  # analysis row is secondary; the check-in is the thing that must exist
         analysis_id = None
-        logger.exception("could not store the analysis row")
+        logger.error("could not store the analysis row: %s", _db_failure(exc))
 
     status_value: Literal["analyzed", "analysis_failed"] = (
         "analyzed" if outcome.analysis is not None else "analysis_failed"
     )
-    async with user_client(user.token) as db:
-        await db.update(
-            "checkins",
-            {"analysis_status": status_value},
-            where="id = :checkin_id and patient_id = :patient_id",
-            params={"checkin_id": str(checkin_id), "patient_id": str(user.id)},
-        )
+    try:
+        async with user_client(user.token) as db:
+            await db.update(
+                "checkins",
+                {"analysis_status": status_value},
+                where="id = :checkin_id and patient_id = :patient_id",
+                params={"checkin_id": str(checkin_id), "patient_id": str(user.id)},
+            )
+    except Exception as exc:  # the check-in is stored either way; record why it stayed pending
+        logger.error("could not update check-in status: %s", _db_failure(exc))
 
     # 4. Alert after the patient has their answer.
     background_tasks.add_task(_alert_if_high, outcome, user.id, analysis_id)

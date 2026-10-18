@@ -7,14 +7,16 @@ production code under test.
 The guarantee worth the most here: the check-in row exists whatever the model does.
 """
 
+import contextlib
 import json
+import logging
 from typing import Any
 from uuid import UUID
 
 import pytest
 from httpx import AsyncClient
 
-from app.core.deps import CurrentUser  # noqa: F401  - keeps the auth surface importable in tests
+from app.api import checkins as checkins_module
 from app.models.profile import UserRole
 from app.services.ai.llm_client import ChatResult, LLMError
 from app.services.analysis import pipeline as pipeline_module
@@ -362,3 +364,72 @@ async def test_response_never_echoes_the_transcript(
         api_client, make_token(patient_with_consent["patient"]), {"transcript": CLEAN}
     )
     assert CLEAN not in response.text
+
+
+async def test_a_database_error_does_not_log_the_transcript(
+    api_client, fake_llm, patient_with_consent, make_token, monkeypatch, caplog
+) -> None:
+    """SQLAlchemy echoes bound parameters in its error text, and the bound value here is the
+    transcript — so the endpoint must report failures by exception class, never by message.
+    """
+    fake_llm(llm_json())
+
+    class ExplodingClient:
+        async def insert(self, table, values, **_kwargs):
+            raise RuntimeError(
+                f"[SQL: insert into {table}] [parameters: ({values['transcript']},)]"
+            )
+
+        async def update(self, table, values, **_kwargs):
+            return 0
+
+    @contextlib.asynccontextmanager
+    async def exploding_client(_token: str):
+        yield ExplodingClient()
+
+    monkeypatch.setattr(checkins_module, "user_client", exploding_client)
+
+    with caplog.at_level(logging.ERROR):
+        response = await post_checkin(
+            api_client, make_token(patient_with_consent["patient"]), {"transcript": CLEAN}
+        )
+
+    assert response.status_code == 500
+    assert response.json()["detail"]["code"] == "checkin_not_stored"
+    assert CLEAN not in caplog.text
+    assert CLEAN not in response.text
+
+
+async def test_status_update_failure_keeps_the_stored_checkin(
+    api_client, fake_llm, patient_with_consent, make_token, monkeypatch, rows_for, caplog
+) -> None:
+    """The check-in is already committed; a failed status write must not fail the request."""
+    fake_llm(llm_json())
+    real_user_client = checkins_module.user_client
+    calls = {"update": 0}
+
+    @contextlib.asynccontextmanager
+    async def flaky_client(token: str):
+        async with real_user_client(token) as db:
+
+            async def update(*_args, **_kwargs):
+                calls["update"] += 1
+                raise RuntimeError("connection lost")
+
+            db.update = update  # type: ignore[method-assign]
+            yield db
+
+    monkeypatch.setattr(checkins_module, "user_client", flaky_client)
+
+    with caplog.at_level(logging.ERROR):
+        response = await post_checkin(
+            api_client, make_token(patient_with_consent["patient"]), {"transcript": CLEAN}
+        )
+
+    assert response.status_code == 201, response.text
+    assert calls["update"] == 1
+    assert "could not update check-in status" in caplog.text
+    # The row exists; it simply stayed pending, which is recoverable, not lost.
+    stored = await rows_for("checkins", where="id = :id", id=response.json()["checkin_id"])
+    assert stored[0]["transcript"] == CLEAN
+    assert stored[0]["analysis_status"] == "pending"
