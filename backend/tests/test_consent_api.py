@@ -17,7 +17,6 @@ from uuid import UUID
 
 import pytest
 
-from app.api import consent as consent_module
 from app.models.profile import UserRole
 from app.services.db import service_client
 
