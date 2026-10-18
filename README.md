@@ -111,7 +111,7 @@ for setup.
 - [x] F10 Clinician patient list with risk badges
 - [x] F11 Patient detail: trend charts and timeline
 - [x] F12 Check-in detail with evidence highlight and AI label
-- [ ] F13 Alerts panel with acknowledge
+- [x] F13 Alerts panel with acknowledge
 - [ ] F14 Loading, empty, and error states everywhere
 - [ ] F15 Mobile (360px) and accessibility pass
 - [ ] F16 Unit tests and smoke test

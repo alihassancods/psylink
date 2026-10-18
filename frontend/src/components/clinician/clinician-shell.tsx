@@ -2,45 +2,47 @@
 
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { SkipLink } from "@/components/layout/skip-link";
 import { useSession } from "@/lib/auth/session-provider";
 
 /**
- * Clinician chrome. The AI caveat sits in the footer of every clinician screen as a floor note;
- * the specific "AI-generated, verify with the patient" label appears next to AI output itself.
+ * Clinician chrome. The caveat about model output sits in the footer of every clinician screen as
+ * a floor note; the specific "AI-generated, verify with the patient" label appears next to the AI
+ * output itself, on each screen that shows it.
  */
 export function ClinicianShell({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useSession();
 
   return (
     <div className="flex min-h-full flex-1 flex-col">
+      <SkipLink />
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 px-4 py-2">
-          <div className="flex items-center gap-4">
-            <Link href="/patients" className="inline-flex min-h-11 items-center text-base font-semibold">
-              Psylink
-            </Link>
-            <nav aria-label="Clinician" className="flex items-center gap-1">
-              <Link
-                className="inline-flex min-h-11 items-center rounded-lg px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                href="/patients"
-              >
-                Patients
-              </Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              {profile?.display_name ?? "Clinician"}
-            </span>
-            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-              Sign out
-            </Button>
-          </div>
+        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-4 py-2">
+          <Link href="/patients" className="inline-flex min-h-11 items-center text-base font-semibold">
+            Psylink
+          </Link>
+          <span className="hidden text-sm text-muted-foreground sm:inline">
+            {profile?.display_name ?? "Clinician"}
+          </span>
         </div>
+        <nav aria-label="Clinician" className="border-t border-border">
+          <div className="mx-auto flex w-full max-w-4xl gap-1 overflow-x-auto px-2">
+            <NavLink href="/patients">Patients</NavLink>
+            <NavLink href="/alerts">Alerts</NavLink>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              Sign out
+            </button>
+          </div>
+        </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">{children}</main>
+      <main id="main" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 outline-none">
+        {children}
+      </main>
 
       <footer className="border-t border-border bg-card">
         <div className="mx-auto w-full max-w-4xl space-y-1 px-4 py-4 text-sm text-muted-foreground">
@@ -49,5 +51,16 @@ export function ClinicianShell({ children }: { children: React.ReactNode }) {
         </div>
       </footer>
     </div>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+      href={href}
+    >
+      {children}
+    </Link>
   );
 }
