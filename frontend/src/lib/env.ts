@@ -11,6 +11,14 @@ export const API_BASE_URL = trimSlash(
   process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:8000",
 );
 
+/**
+ * Canonical site origin, used for metadata URLs and the Open Graph image. Falls back to the local
+ * dev origin so an unset value produces absolute meta tags rather than a crash at build.
+ */
+export const SITE_URL = trimSlash(
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000",
+);
+
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
 
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";

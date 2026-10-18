@@ -50,10 +50,25 @@ async function demoSignIn(page: Page, button: string, landing: RegExp) {
   await page.waitForURL(landing, { timeout: 15_000 });
 }
 
+test.describe("public landing page", () => {
+  test("the landing page is public and states what it is not", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try as patient" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try as psychologist" })).toBeVisible();
+
+    // "Not emergency care" has to be under the hero buttons, not only in the footer.
+    await expect(page.getByText("Not emergency care. Demo data is synthetic.")).toBeVisible();
+
+    // A visitor who has not signed in must not be bounced away from the marketing page.
+    await expect(page).toHaveURL(/\/$/);
+  });
+});
+
 test.describe("access guards", () => {
   test("anonymous visitors are routed to the login screen", async ({ page }) => {
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/login/);
+    await page.goto("/login");
     await expect(page.getByRole("button", { name: "Try as demo patient" })).toBeVisible();
     await expect(
       page.getByText("Demo accounts hold synthetic data only"),
@@ -67,6 +82,70 @@ test.describe("access guards", () => {
 });
 
 test.describe("demo walk", () => {
+  test("a linked patient reaches home without ever seeing the consent screen", async ({ page }) => {
+    if (demoUnavailable) test.skip(true, `demo walk skipped: ${demoUnavailable}`);
+
+    const seenPaths: string[] = [];
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame()) seenPaths.push(new URL(frame.url()).pathname);
+    });
+
+    const apiPaths: string[] = [];
+    page.on("request", (request) => {
+      const url = request.url();
+      if (url.startsWith(API_URL)) apiPaths.push(new URL(url).pathname);
+    });
+
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Try as demo patient" }).click();
+    await page.waitForURL(/\/home/, { timeout: 15_000 });
+
+    // The bug this guards: the gate read an unanswered consent check as "not linked" and bounced
+    // the person to /consent, repeatedly, before the real content appeared.
+    expect(seenPaths, `landed via ${seenPaths.join(" → ")}`).not.toContain("/consent");
+
+    const linkChecks = apiPaths.filter((p) => p === "/api/consent").length;
+    expect(linkChecks, "/api/consent calls: one per cache lifetime").toBe(1);
+
+    // Sign-in asks for the profile and so does Supabase's own SIGNED_IN event; the cache collapses
+    // them, so this must not grow with the number of screens that render.
+    const meCalls = apiPaths.filter((p) => p === "/auth/me").length;
+    expect(meCalls, "/auth/me calls").toBeLessThanOrEqual(2);
+
+    // Moving between patient screens reuses the answered question.
+    await page.getByRole("link", { name: "Settings" }).click();
+    await page.waitForURL(/\/settings/, { timeout: 10_000 });
+    expect(apiPaths.filter((p) => p === "/api/consent").length, "still one link check").toBe(1);
+  });
+
+  test("changing the range re-fetches the trend only, not the whole chart", async ({ page }) => {
+    if (demoUnavailable) test.skip(true, `demo walk skipped: ${demoUnavailable}`);
+
+    await demoSignIn(page, "Try as demo psychologist", /\/patients/);
+    await page.locator('a[href^="/patients/"]').first().click();
+    await page.waitForURL(/\/patients\/[^/]+$/, { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "30 days" })).toBeVisible({ timeout: 20_000 });
+
+    const afterLoad: string[] = [];
+    page.on("request", (request) => {
+      const url = request.url();
+      if (url.startsWith(API_URL)) afterLoad.push(new URL(url).pathname);
+    });
+
+    await page.getByRole("button", { name: "30 days" }).click();
+    await page.waitForTimeout(2_500);
+
+    const trends = afterLoad.filter((p) => p.endsWith("/trend")).length;
+    const roster = afterLoad.filter((p) => p === "/api/patients").length;
+    const details = afterLoad.filter((p) => p.includes("/checkins/")).length;
+
+    // Twenty detail calls plus a 100-row roster used to be re-issued on every range change.
+    expect(trends, "trend re-read for the new range").toBe(1);
+    expect(roster, "roster served from cache, not re-pulled for one name").toBe(0);
+    expect(details, "individual records served from cache").toBe(0);
+  });
+
+
   test("a typed patient check-in reaches the clinician detail screen", async ({ page }) => {
     if (demoUnavailable) test.skip(true, `demo walk skipped: ${demoUnavailable}`);
 

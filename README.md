@@ -121,6 +121,31 @@ for setup.
 loading/error states. **Cut list, in order if short on time:** dark mode, Playwright test, history
 delete, table toggle.
 
+## Landing page progress
+
+`src/app/(landing)/` — the public page at `/`. All copy lives in
+[`frontend/src/app/(landing)/content.ts`](frontend/src/app/(landing)/content.ts) so wording is a
+one-file edit. One step at a time; after each step run lint, typecheck and tests, tick the box, and
+commit.
+
+- [x] L1 content.ts with all copy
+- [ ] L2 Nav and hero with both demo buttons
+- [ ] L3 Demo buttons log in and redirect, with "waking up" and error states
+- [ ] L4 Problem section
+- [ ] L5 How it works (4 steps)
+- [ ] L6 Patient and psychologist/psychiatrist columns
+- [ ] L7 Safety and privacy section with crisis resources link
+- [ ] L8 Demo call-to-action section
+- [ ] L9 FAQ with honest answers
+- [ ] L10 Footer with disclaimer and GitHub link
+- [ ] L11 Title, description, Open Graph metadata
+- [ ] L12 Mobile layout at 360px
+- [ ] L13 Accessibility pass (keyboard, contrast, headings)
+- [ ] L14 Deployed on Vercel and tested on a phone
+
+**Never cut:** demo buttons, safety section, the "Not emergency care" line under the hero buttons.
+**Cut list, in order if short on time:** scroll animations, extra FAQ items (keep two), the OG image.
+
 ## Status
 
 Backend: complete and tested — speech-to-text, the combined analysis pipeline, consent and
