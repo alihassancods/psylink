@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* Psylink design tokens — see README "Frontend progress" F1.
+   Light surface only: dark mode was descoped, so no `dark:` variants exist. */
+:root {
+  --background: #f8fafc; /* slate-50 */
+  --foreground: #0f172a; /* slate-900 */
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9; /* slate-100 */
+  --muted-foreground: #475569; /* slate-600 */
+  --border: #e2e8f0; /* slate-200 */
+  --input: #cbd5e1; /* slate-300 */
+  --ring: #0d9488; /* teal-600 */
+  --primary: #0d9488; /* teal-600 */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --destructive: #b91c1c; /* red-700, 4.5:1 on white */
+  --radius: 0.75rem; /* rounded-xl */
+
+  /* Risk is always colour + icon + text; these are the text/background pairs. */
+  --risk-low: #065f46;
+  --risk-low-surface: #ecfdf5;
+  --risk-low-border: #a7f3d0;
+  --risk-moderate: #92400e;
+  --risk-moderate-surface: #fffbeb;
+  --risk-moderate-border: #fde68a;
+  --risk-high: #991b1b;
+  --risk-high-surface: #fef2f2;
+  --risk-high-border: #fecaca;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-surface: var(--risk-low-surface);
+  --color-risk-low-border: var(--risk-low-border);
+  --color-risk-moderate: var(--risk-moderate);
+  --color-risk-moderate-surface: var(--risk-moderate-surface);
+  --color-risk-moderate-border: var(--risk-moderate-border);
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-surface: var(--risk-high-surface);
+  --color-risk-high-border: var(--risk-high-border);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --radius-xl: var(--radius);
+  --radius-lg: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 6px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Recording pulse. Motion is disabled for users who ask for less of it. */
+@keyframes psylink-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.15;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+}
+
+.psylink-pulse {
+  animation: psylink-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .psylink-pulse {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

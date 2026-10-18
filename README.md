@@ -50,7 +50,7 @@ the full pipeline. Numbers and honest limitations → [`docs/eval-results.md`](d
 | Architecture and the decisions behind them | [`docs/PLAN.md`](docs/PLAN.md) |
 | Safety evaluation and results | [`docs/eval-results.md`](docs/eval-results.md) |
 | Build progress | [`CHECKLIST.md`](CHECKLIST.md) |
-| Frontend | separate repo; its contract is in `backend/README.md` → "Frontend contract" |
+| Frontend | [`frontend/`](frontend/README.md) — Next.js app; its API contract is in `backend/README.md` → "Frontend contract" |
 
 ## Quick start
 
@@ -92,6 +92,34 @@ This is a hackathon build. The full list is in
 version: clinical review of the corpus and thresholds, region-aware crisis routing, distributed
 rate limiting, data-processing agreements with both providers, an audit trail on who read which
 patient, and penetration testing of the invite flow.
+
+## Frontend progress
+
+`frontend/` is the Next.js (App Router) client. One step at a time; after each step run lint,
+typecheck and tests, tick the box here, and commit. See [`frontend/README.md`](frontend/README.md)
+for setup.
+
+- [x] F1 Scaffold, Tailwind, shadcn, design tokens, .env.example
+- [ ] F2 Supabase auth, API client, role guards
+- [ ] F3 Login/signup with demo buttons
+- [ ] F4 Consent and invite-code screens
+- [ ] F5 Recorder with mic permission flow and typed fallback
+- [ ] F6 Transcript review and submit
+- [ ] F7 Result screen and crisis card
+- [ ] F8 "Need help now?" link and footer notice on all patient screens
+- [ ] F9 Patient history and settings (revoke, delete)
+- [ ] F10 Clinician patient list with risk badges
+- [ ] F11 Patient detail: trend charts and timeline
+- [ ] F12 Check-in detail with evidence highlight and AI label
+- [ ] F13 Alerts panel with acknowledge
+- [ ] F14 Loading, empty, and error states everywhere
+- [ ] F15 Mobile (360px) and accessibility pass
+- [ ] F16 Unit tests and smoke test
+- [ ] F17 Vercel deploy, tested on a phone
+
+**Never cut:** consent, crisis card, "Need help now?" link, evidence highlight, demo buttons,
+loading/error states. **Cut list, in order if short on time:** dark mode, Playwright test, history
+delete, table toggle.
 
 ## Status
 
