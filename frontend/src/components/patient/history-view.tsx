@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -15,9 +16,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardListSkeleton, EmptyState, ErrorPanel } from "@/components/states";
 import { ApiError, api } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
-import type { CheckinSummary } from "@/types/api";
+import { asState, useCheckinsQuery } from "@/lib/queries";
+import type { CheckinPage, CheckinSummary } from "@/types/api";
 
 const PAGE_SIZE = 100;
 
@@ -29,11 +31,8 @@ const PAGE_SIZE = 100;
  * are kept off patient screens on purpose.
  */
 export function HistoryView() {
-  const [nonce, setNonce] = useState(0);
-  const checkins = useApi(
-    () => api.listCheckins({ limit: PAGE_SIZE, offset: 0 }),
-    `history-${nonce}`,
-  );
+  const queryClient = useQueryClient();
+  const checkins = asState(useCheckinsQuery(PAGE_SIZE));
   const [pendingDelete, setPendingDelete] = useState<CheckinSummary | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -55,9 +54,15 @@ export function HistoryView() {
         return;
       }
     }
+    // Drop the deleted record from every cached list instead of re-pulling this one.
+    queryClient.setQueryData<CheckinPage>(queryKeys.checkins(PAGE_SIZE, 0), (page) =>
+      page
+        ? { ...page, items: page.items.filter((i) => i.checkin_id !== pendingDelete.checkin_id) }
+        : page,
+    );
+    queryClient.invalidateQueries({ queryKey: ["checkins"] });
     setPendingDelete(null);
     setDeleting(false);
-    setNonce((value) => value + 1);
   }
 
   return (

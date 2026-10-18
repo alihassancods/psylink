@@ -1,61 +1,68 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { AiNote } from "@/components/clinician/ai-note";
 import { CheckinTimeline } from "@/components/clinician/checkin-timeline";
-import { EmotionBars } from "@/components/charts/emotion-bars";
-import { MoodTrendChart } from "@/components/charts/mood-trend-chart";
-import { SymptomMultiples } from "@/components/charts/symptom-multiples";
 import { CardListSkeleton, EmptyState, ErrorPanel } from "@/components/states";
-import { api } from "@/lib/api";
-import { useApi } from "@/lib/use-api";
-import type { CheckinDetail, Trend } from "@/types/api";
+import { useCheckinDetails, usePatientsQuery, useTrendQuery } from "@/lib/queries";
+import type { TrendPoint } from "@/types/api";
 
 const RANGES = [7, 14, 30] as const;
 type Range = (typeof RANGES)[number];
 
 /**
  * Trend requests carry mood, risk and summary only. Symptoms and emotions live on the individual
- * analysis, so the most recent records are fetched to build those charts. Capped at 20 because each
- * one is a request; the page says so rather than implying the chart covers the whole range.
+ * analysis, so the most recent records are read to build those charts. Capped at 20, and the page
+ * says so rather than implying the chart covers the whole range. Each record is now its own cached
+ * query, so the cost is one request per record *not already seen* — switching the range re-fetches
+ * the trend alone, and revisiting a patient fetches nothing.
  */
 const DETAIL_LIMIT = 20;
+
+/** Shared empty array so the detail keys below are not rebuilt on every render. */
+const NO_POINTS: TrendPoint[] = [];
+
+/**
+ * recharts plus its d3 tree is the heaviest code in this route and the last thing a clinician reads.
+ * Loaded on demand so the counts, the timeline and the patient's name render without waiting on a
+ * charting library. `ssr: false` is valid because this module is already a Client Component —
+ * `next/dist/docs/01-app/02-guides/lazy-loading.md`.
+ */
+const MoodTrendChart = dynamic(
+  () => import("@/components/charts/mood-trend-chart").then((module) => module.MoodTrendChart),
+  { ssr: false, loading: () => <CardListSkeleton count={1} /> },
+);
+const SymptomMultiples = dynamic(
+  () => import("@/components/charts/symptom-multiples").then((module) => module.SymptomMultiples),
+  { ssr: false, loading: () => <CardListSkeleton count={2} /> },
+);
+const EmotionBars = dynamic(
+  () => import("@/components/charts/emotion-bars").then((module) => module.EmotionBars),
+  { ssr: false, loading: () => <CardListSkeleton count={1} /> },
+);
 
 export function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [days, setDays] = useState<Range>(14);
 
-  const view = useApi(
-    async (): Promise<{ trend: Trend; details: CheckinDetail[]; name: string | null }> => {
-      const [trend, roster] = await Promise.all([
-        api.getPatientTrends(id, days),
-        api.listPatients().then(
-          (page) => page,
-          () => null,
-        ),
-      ]);
-      const recent = trend.points.slice(0, DETAIL_LIMIT);
-      const rows = await Promise.all(
-        recent.map((point) =>
-          api.getCheckinDetail(id, point.checkin_id).then(
-            (detail) => detail,
-            () => null,
-          ),
-        ),
-      );
-      return {
-        trend,
-        details: rows.filter((row): row is CheckinDetail => row !== null),
-        name: roster?.items.find((patient) => patient.patient_id === id)?.display_name ?? null,
-      };
-    },
-    `patient-${id}-${days}`,
-  );
+  const trendView = useTrendQuery(id, days);
+  const roster = usePatientsQuery();
+  // The list page already filled this cache entry. It used to be re-pulled — 100 rows — to read one
+  // display name.
+  const name =
+    roster.data?.items.find((patient) => patient.patient_id === id)?.display_name ?? null;
 
-  const trend = view.data?.trend;
-  const points = trend?.points ?? [];
+  const trend = trendView.data;
+  const points = trend?.points ?? NO_POINTS;
+
+  const detailIds = useMemo(
+    () => points.slice(0, DETAIL_LIMIT).map((point) => point.checkin_id),
+    [points],
+  );
+  const details = useCheckinDetails(id, detailIds);
 
   return (
     <div className="space-y-5">
@@ -66,7 +73,7 @@ export function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
         >
           All patients
         </Link>
-        <h1 className="text-lg font-semibold">{view.data?.name ?? "This patient"}</h1>
+        <h1 className="text-lg font-semibold">{name ?? "This patient"}</h1>
         <p className="text-sm text-muted-foreground">
           Only what this patient chose to share, and only while their consent is active.
         </p>
@@ -74,24 +81,28 @@ export function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
 
       <RangeSwitcher days={days} onChange={setDays} />
 
-      {view.status === "loading" ? <CardListSkeleton count={3} /> : null}
+      {trendView.isPending ? <CardListSkeleton count={3} /> : null}
 
-      {view.status === "error" ? (
+      {trendView.isError ? (
         <ErrorPanel
           title="This patient is not available"
-          message={`${view.message} If they revoked consent, their history closes immediately.`}
-          onRetry={() => void view.reload()}
+          message={`${
+            trendView.error instanceof Error && trendView.error.message
+              ? trendView.error.message
+              : "We could not load this patient."
+          } If they revoked consent, their history closes immediately.`}
+          onRetry={() => void trendView.refetch()}
         />
       ) : null}
 
-      {view.status === "success" && points.length === 0 ? (
+      {trend && points.length === 0 ? (
         <EmptyState
           title="No check-ins in this range"
           description="Nothing was shared in the last few days. Widen the range, or check back after the next check-in."
         />
       ) : null}
 
-      {trend ? (
+      {trend && points.length > 0 ? (
         <>
           <ul className="grid gap-2 text-sm sm:grid-cols-3">
             <li className="rounded-lg border border-border bg-card p-3">
@@ -112,11 +123,13 @@ export function PatientDetail({ params }: { params: Promise<{ id: string }> }) {
 
           <MoodTrendChart points={points} days={days} />
 
-          {view.data && view.data.details.length > 0 ? (
+          {details.length > 0 ? (
             <>
-              <SymptomMultiples details={view.data.details} />
-              <EmotionBars details={view.data.details} />
+              <SymptomMultiples details={details} />
+              <EmotionBars details={details} />
             </>
+          ) : detailIds.length > 0 ? (
+            <CardListSkeleton count={2} />
           ) : (
             <p className="text-sm text-muted-foreground">
               Symptom and emotion charts need individual records; none were readable in this range.

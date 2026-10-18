@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,10 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorPanel, CardListSkeleton } from "@/components/states";
 import { ApiError, api } from "@/lib/api";
-import { useConsentStatus } from "@/lib/auth/require-role";
 import { useSession } from "@/lib/auth/session-provider";
+import { queryKeys } from "@/lib/query-keys";
+import { asState, useCheckinsQuery, useConsentQuery } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
 
 /**
  * Privacy and sharing. Revoking is real (`DELETE /api/consent/{clinician_id}`, which closes the
@@ -28,13 +29,13 @@ import { useApi } from "@/lib/use-api";
  * so that control says so instead of pretending to work.
  */
 export function SettingsView() {
-  const consent = useConsentStatus();
+  const queryClient = useQueryClient();
+  // Same cached query the route guard uses, so the two can never disagree about who is linked.
+  const consentQuery = useConsentQuery(true);
+  const consent = asState(consentQuery);
+  const links = consent.data ?? [];
   const { signOut } = useSession();
-  const [nonce, setNonce] = useState(0);
-  const checkins = useApi(
-    () => api.listCheckins({ limit: 100, offset: 0 }),
-    `settings-checkins-${nonce}`,
-  );
+  const checkins = asState(useCheckinsQuery(100));
 
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
   const [revokeBusy, setRevokeBusy] = useState(false);
@@ -50,14 +51,16 @@ export function SettingsView() {
     try {
       await api.revokeConsent(clinicianId);
       setRevokeTarget(null);
-      await consent.reload();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "We could not stop that share.");
       setRevokeTarget(null);
-      await consent.reload();
     } finally {
       setRevokeBusy(false);
     }
+    // The guard reads this same key: refreshing it is what bounces an unlinked patient to /consent
+    // without a page reload.
+    await queryClient.invalidateQueries({ queryKey: queryKeys.consent });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.patients });
   }
 
   async function deleteEverything() {
@@ -81,8 +84,10 @@ export function SettingsView() {
     setDeletedCount(done);
     setDeleteAllBusy(false);
     setDeleteAllOpen(false);
-    setNonce((value) => value + 1);
-    await checkins.reload();
+    // Their detail records are immutable-cached; drop them too or a clinician could still read one.
+    queryClient.removeQueries({ queryKey: ["checkin"] });
+    await queryClient.invalidateQueries({ queryKey: ["checkins"] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.patients });
   }
 
   return (
@@ -102,7 +107,7 @@ export function SettingsView() {
               onRetry={() => void consent.reload()}
             />
           ) : null}
-          {consent.status === "ready" && consent.links.length === 0 ? (
+          {consent.status === "success" && links.length === 0 ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 Nobody is linked right now, so your check-ins are only stored for you.
@@ -112,7 +117,7 @@ export function SettingsView() {
               </Button>
             </div>
           ) : null}
-          {consent.links.map((link) => (
+          {links.map((link) => (
             <div
               key={link.consent_id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3"
@@ -137,7 +142,7 @@ export function SettingsView() {
               </Button>
             </div>
           ))}
-          {consent.links.length > 0 ? (
+          {links.length > 0 ? (
             <p className="text-xs text-muted-foreground">
               Stopping sharing also hides the check-ins you sent before. You can link again later
               with a new invite code.

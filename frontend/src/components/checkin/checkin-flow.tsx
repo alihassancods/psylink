@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { ApiError, api, shouldTypeInstead } from "@/lib/api";
 import { PATIENT_LANDING } from "@/lib/auth/session-provider";
+import { queryKeys } from "@/lib/query-keys";
 import type { CheckinResult as CheckinResponse } from "@/types/api";
 import { CheckinResult } from "@/components/checkin/checkin-result";
 import { Recorder } from "@/components/checkin/recorder";
@@ -28,6 +30,7 @@ const STEPS: { id: Step; label: string }[] = [
  */
 export function CheckinFlow() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const audioRef = useRef<Blob | null>(null);
 
   const [step, setStep] = useState<Step>("record");
@@ -91,6 +94,9 @@ export function CheckinFlow() {
         setTranscript(data.transcript);
       } catch (error) {
         if (error instanceof ApiError && error.code === "consent_required") {
+          // The backend is the authority on consent; make the guard re-read it rather than keep
+          // trusting the answer it cached a minute ago.
+          queryClient.invalidateQueries({ queryKey: queryKeys.consent });
           router.replace("/consent");
           return;
         }
@@ -103,7 +109,7 @@ export function CheckinFlow() {
         setTranscribing(false);
       }
     },
-    [router],
+    [queryClient, router],
   );
 
   const submit = useCallback(async () => {
@@ -120,6 +126,9 @@ export function CheckinFlow() {
           : await api.createCheckin({ note: text });
       setResult(payload);
       setStep("result");
+      // Home and history read this key, so the new entry is there when the person goes back.
+      queryClient.invalidateQueries({ queryKey: ["checkins"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.patients, refetchType: "none" });
     } catch (error) {
       if (shouldTypeInstead(error)) {
         // The voice path failed upstream; keep the person's words and let them send text.
@@ -130,6 +139,7 @@ export function CheckinFlow() {
           text,
         );
       } else if (error instanceof ApiError && error.code === "consent_required") {
+        queryClient.invalidateQueries({ queryKey: queryKeys.consent });
         router.replace("/consent");
       } else {
         setSubmitError(
@@ -141,7 +151,7 @@ export function CheckinFlow() {
     } finally {
       setSubmitting(false);
     }
-  }, [mode, note, router, seconds, submitting, toTyped, transcript]);
+  }, [mode, note, queryClient, router, seconds, submitting, toTyped, transcript]);
 
   return (
     <div className="space-y-4">

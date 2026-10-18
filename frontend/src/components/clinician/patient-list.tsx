@@ -6,9 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardListSkeleton, EmptyState, ErrorPanel } from "@/components/states";
 import { InviteDialog } from "@/components/clinician/invite-dialog";
 import { RiskBadge } from "@/components/clinician/risk-badge";
-import { api } from "@/lib/api";
 import { formatRelativeDay } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
+import { asState, usePatientsQuery } from "@/lib/queries";
 
 /**
  * Roster of currently consented patients, in the order the API returns them — open alerts first,
@@ -19,7 +18,7 @@ import { useApi } from "@/lib/use-api";
  * in for mood here; mood trends appear on the patient's own screen.
  */
 export function PatientList() {
-  const patients = useApi(() => api.listPatients(), "clinician-patients");
+  const patients = asState(usePatientsQuery());
   const items = patients.data?.items ?? [];
 
   return (

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useConsentStatus } from "@/lib/auth/require-role";
+import { consentFrom, useConsentQuery } from "@/lib/queries";
 
 /**
  * Plain-language consent, before any invite code. Nothing is recorded on this screen: it exists so
@@ -17,11 +17,14 @@ import { useConsentStatus } from "@/lib/auth/require-role";
  */
 export function ConsentView() {
   const router = useRouter();
-  const consent = useConsentStatus();
+  // Read from the same cache entry the route guard filled — this screen used to ask the same
+  // question a second time and get a second, possibly different, answer.
+  const consentQuery = useConsentQuery(true);
+  const consent = consentFrom(consentQuery.data);
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (consent.status === "ready" && consent.hasConsent) {
+  if (consentQuery.isSuccess && consent.hasConsent) {
     return (
       <Card>
         <CardHeader>
@@ -114,7 +117,7 @@ export function ConsentView() {
           <Button
             size="lg"
             className="w-full"
-            disabled={!agreed || consent.status === "loading"}
+            disabled={!agreed || consentQuery.isPending}
             onClick={() => {
               if (!agreed) {
                 setError("Tick the box above to continue.");
@@ -128,7 +131,7 @@ export function ConsentView() {
         </CardContent>
       </Card>
 
-      {consent.status === "error" ? (
+      {consentQuery.isError ? (
         <p className="text-sm text-muted-foreground">
           We could not check whether you are already linked. You can continue, and this page will
           update when it loads.

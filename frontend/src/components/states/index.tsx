@@ -4,12 +4,17 @@ import { cn } from "@/lib/utils";
 
 /** Loading placeholders. `role="status"` + text so screen readers announce the wait. */
 
-export function PageLoading({ label = "Loading" }: { label?: string }) {
+/**
+ * Full-height placeholder for a region that has not resolved yet. It carries no max-width of its own
+ * on purpose: it is sized by whatever column it sits in, so swapping it for real content does not
+ * shift the layout — the old `max-w-md` made every skeleton narrower than the shell around it.
+ */
+export function PageLoading({ label = "Loading", className }: { label?: string; className?: string }) {
   return (
     <div
       role="status"
       aria-live="polite"
-      className="mx-auto flex w-full max-w-md flex-col gap-4 p-6"
+      className={cn("flex w-full flex-col gap-4", className)}
     >
       <p className="text-sm text-muted-foreground">{label}…</p>
       <Skeleton className="h-24 w-full rounded-xl" />

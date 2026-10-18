@@ -8,9 +8,8 @@ import { EvidenceTranscript } from "@/components/clinician/evidence-transcript";
 import { RiskBadge } from "@/components/clinician/risk-badge";
 import { EmptyState, ErrorPanel, CardListSkeleton } from "@/components/states";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
+import { asState, useCheckinDetailQuery } from "@/lib/queries";
 import { SYMPTOM_KEYS, normalizeRisk, type SymptomKey } from "@/types/api";
 
 const SYMPTOM_LABELS: Record<SymptomKey, string> = {
@@ -30,7 +29,9 @@ const SYMPTOM_LABELS: Record<SymptomKey, string> = {
  */
 export function CheckinDetail({ params }: { params: Promise<{ id: string; checkinId: string }> }) {
   const { id, checkinId } = use(params);
-  const view = useApi(() => api.getCheckinDetail(id, checkinId), `checkin-${id}-${checkinId}`);
+  // Same cache key the patient's own page already filled for the charts, so opening a record from
+  // the timeline is free.
+  const view = asState(useCheckinDetailQuery(id, checkinId));
   const detail = view.data;
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError, api } from "@/lib/api";
 import { PATIENT_LANDING } from "@/lib/auth/session-provider";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Invite-code linking. The backend treats a redeemed code as consent being granted, so this form
@@ -16,6 +18,7 @@ import { PATIENT_LANDING } from "@/lib/auth/session-provider";
  */
 export function LinkForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -26,6 +29,9 @@ export function LinkForm() {
     setError(null);
     try {
       await api.redeemInvite(code);
+      // The guard reads this same cache key. Without this it keeps its pre-link answer — "not
+      // linked" — and throws a person who just linked straight back at /consent.
+      await queryClient.invalidateQueries({ queryKey: queryKeys.consent });
       router.replace(PATIENT_LANDING);
     } catch (caught) {
       setError(

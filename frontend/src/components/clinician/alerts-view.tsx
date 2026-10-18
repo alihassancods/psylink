@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { RiskBadge } from "@/components/clinician/risk-badge";
@@ -8,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardListSkeleton, EmptyState, ErrorPanel } from "@/components/states";
 import { ApiError, api } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import { asState, useAlertsQuery } from "@/lib/queries";
 import { formatDateTime } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
 import type { Alert } from "@/types/api";
 
 const FILTERS = ["open", "all"] as const;
@@ -20,34 +22,59 @@ type Filter = (typeof FILTERS)[number];
  * button disables while a request is in flight and a 404 is treated as "someone already did it".
  */
 export function AlertsView() {
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("open");
-  const [nonce, setNonce] = useState(0);
-  const alerts = useApi(() => api.listAlerts(filter, 50), `alerts-${filter}-${nonce}`);
+  const alerts = asState(useAlertsQuery(filter));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const items = alerts.data ?? [];
+
+  /**
+   * The acknowledged row is edited in place instead of re-pulling the whole queue. A 50-row
+   * refetch per acknowledge used to mean clearing a busy morning's queue cost 50 extra round trips
+   * and made the list jump under the cursor. Other keys are marked stale without refetching, so
+   * the next screen that needs them gets the truth.
+   */
+  function settle(alertId: string, acknowledgedAt: string | null) {
+    queryClient.setQueryData<Alert[]>(queryKeys.alerts("open"), (rows) =>
+      rows ? rows.filter((row) => row.alert_id !== alertId) : rows,
+    );
+    if (acknowledgedAt) {
+      queryClient.setQueryData<Alert[]>(queryKeys.alerts("all"), (rows) =>
+        rows
+          ? rows.map((row) =>
+              row.alert_id === alertId ? { ...row, acknowledged_at: acknowledgedAt } : row,
+            )
+          : rows,
+      );
+    }
+    for (const key of [queryKeys.alerts("open"), queryKeys.alerts("all"), queryKeys.patients]) {
+      queryClient.invalidateQueries({ queryKey: key, refetchType: "none" });
+    }
+  }
 
   async function acknowledge(alert: Alert) {
     if (busy) return;
     setBusy(alert.alert_id);
     setError(null);
     try {
-      await api.acknowledgeAlert(alert.alert_id);
+      const result = await api.acknowledgeAlert(alert.alert_id);
+      settle(alert.alert_id, result.acknowledged_at);
     } catch (caught) {
-      if (!(caught instanceof ApiError && caught.status === 404)) {
+      if (caught instanceof ApiError && caught.status === 404) {
+        // Already acknowledged, or the patient withdrew consent: either way it is not actionable.
+        settle(alert.alert_id, new Date().toISOString());
+      } else {
         setError(
           caught instanceof ApiError
             ? caught.message
             : "We could not acknowledge that alert.",
         );
       }
-      // A 404 means it was already acknowledged, or the patient withdrew consent. Either way the
-      // list is stale, so it is refetched below rather than left showing a dead button.
     } finally {
       setBusy(null);
     }
-    setNonce((value) => value + 1);
   }
 
   return (

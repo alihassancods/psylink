@@ -5,9 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardListSkeleton, EmptyState, ErrorPanel } from "@/components/states";
-import { api } from "@/lib/api";
 import { formatRelativeDay } from "@/lib/utils";
-import { useApi } from "@/lib/use-api";
+import { asState, useCheckinsQuery } from "@/lib/queries";
 
 /**
  * Patient home. One primary action: start a check-in.
@@ -18,7 +17,7 @@ import { useApi } from "@/lib/use-api";
  * Raw risk labels stay off patient screens by design.
  */
 export function HomeView() {
-  const checkins = useApi(() => api.listCheckins({ limit: 4 }), "home-checkins");
+  const checkins = asState(useCheckinsQuery(4));
   const items = checkins.data?.items ?? [];
   const latest = items[0];
 
