@@ -38,6 +38,25 @@ class Settings(BaseSettings):
     commandcode_model: str = "deepseek/deepseek-v4-flash"
     commandcode_fallback_model: str = ""
 
+    # --- Deploy surface --------------------------------------------------------------------
+    # Comma-separated browser origins allowed to call this API (Vercel + localhost preview).
+    # Empty means no cross-origin access is granted at all.
+    frontend_origin: str = "http://localhost:3000"
+
+    # --- Clinician alerts --------------------------------------------------------------------
+    # Without both a key and a verified sender, alerts stay dashboard-only and the email step
+    # is skipped rather than failing the check-in.
+    resend_api_key: str = ""
+    alert_email_from: str = ""
+    alert_dedupe_hours: int = 6
+
+    @field_validator("alert_dedupe_hours")
+    @classmethod
+    def _dedupe_window_in_range(cls, value: int) -> int:
+        if not 1 <= value <= 72:
+            raise ValueError("ALERT_DEDUPE_HOURS must be between 1 and 72")
+        return value
+
     @field_validator("max_audio_seconds")
     @classmethod
     def _audio_seconds_in_range(cls, value: int) -> int:
@@ -56,3 +75,9 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def cors_origins(settings: Settings | None = None) -> list[str]:
+    """`FRONTEND_ORIGIN` as a list: comma-separated, blanks and stray whitespace dropped."""
+    raw = (settings or get_settings()).frontend_origin
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]

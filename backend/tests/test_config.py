@@ -58,3 +58,27 @@ def test_boundaries_are_inclusive() -> None:
     assert (settings.max_audio_seconds, settings.max_audio_mb) == (5, 1)
     settings = make_settings(max_audio_seconds="600", max_audio_mb="25")
     assert (settings.max_audio_seconds, settings.max_audio_mb) == (600, 25)
+
+
+def test_alert_and_cors_defaults() -> None:
+    settings = make_settings()
+    assert settings.frontend_origin == "http://localhost:3000"
+    assert settings.resend_api_key == ""
+    assert settings.alert_email_from == ""
+    assert settings.alert_dedupe_hours == 6
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "73", "nope"])
+def test_bad_alert_dedupe_window_fails_at_startup(value: str) -> None:
+    with pytest.raises(ValidationError):
+        make_settings(alert_dedupe_hours=value)
+
+
+def test_cors_origins_splits_on_commas() -> None:
+    from app.core.config import cors_origins
+
+    configured = cors_origins(
+        make_settings(frontend_origin="https://a.vercel.app, http://localhost:3000")
+    )
+    assert configured == ["https://a.vercel.app", "http://localhost:3000"]
+    assert cors_origins(make_settings(frontend_origin="  ")) == []
