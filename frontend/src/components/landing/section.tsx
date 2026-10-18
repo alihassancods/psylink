@@ -20,11 +20,7 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section
-      id={id}
-      aria-label={label}
-      className={cn("scroll-mt-24 py-14 sm:py-20", className)}
-    >
+    <section id={id} aria-label={label} className={cn("scroll-mt-24 py-14 sm:py-20", className)}>
       <div className={CONTAINER}>{children}</div>
     </section>
   );

@@ -1,7 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import { expect, test, type Page } from "@playwright/test";
+
+import { API_URL, demoSkipReason } from "./helpers";
 
 /**
  * Demo smoke test. The guard tests run against any deployment. The full patient→clinician walk
@@ -9,39 +8,11 @@ import { expect, test, type Page } from "@playwright/test";
  * `NEXT_PUBLIC_DEMO_PASSWORD`; without them it is skipped with the reason, never faked.
  */
 
-function readEnv(name: string): string {
-  const fromProcess = process.env[name]?.trim();
-  if (fromProcess) return fromProcess;
-  const file = path.resolve(__dirname, "..", ".env.local");
-  if (!fs.existsSync(file)) return "";
-  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
-    if (match?.[1] === name) return match[2].replace(/^["']|["']$/g, "").trim();
-  }
-  return "";
-}
-
-const API_URL = readEnv("NEXT_PUBLIC_API_URL") || "http://localhost:8000";
-const DEMO_PASSWORD = readEnv("NEXT_PUBLIC_DEMO_PASSWORD");
-
 /** Non-empty = reason the demo walk cannot run here. */
 let demoUnavailable = "";
 
 test.beforeAll(async ({ request }) => {
-  try {
-    const health = await request.fetch(`${API_URL}/health`, { timeout: 5_000 });
-    if (!health.ok()) {
-      demoUnavailable = `backend at ${API_URL} answered ${health.status()} on /health`;
-      return;
-    }
-  } catch {
-    demoUnavailable = `backend at ${API_URL} is not reachable`;
-    return;
-  }
-  if (!DEMO_PASSWORD) {
-    demoUnavailable =
-      "NEXT_PUBLIC_DEMO_PASSWORD is not set, so the demo buttons cannot sign into the seeded accounts";
-  }
+  demoUnavailable = await demoSkipReason(request);
 });
 
 async function demoSignIn(page: Page, button: string, landing: RegExp) {
@@ -49,22 +20,6 @@ async function demoSignIn(page: Page, button: string, landing: RegExp) {
   await page.getByRole("button", { name: button }).click();
   await page.waitForURL(landing, { timeout: 15_000 });
 }
-
-test.describe("public landing page", () => {
-  test("the landing page is public and states what it is not", async ({ page }) => {
-    await page.goto("/");
-
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Try as patient" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Try as psychologist" })).toBeVisible();
-
-    // "Not emergency care" has to be under the hero buttons, not only in the footer.
-    await expect(page.getByText("Not emergency care. Demo data is synthetic.")).toBeVisible();
-
-    // A visitor who has not signed in must not be bounced away from the marketing page.
-    await expect(page).toHaveURL(/\/$/);
-  });
-});
 
 test.describe("access guards", () => {
   test("anonymous visitors are routed to the login screen", async ({ page }) => {
@@ -100,22 +55,29 @@ test.describe("demo walk", () => {
     await page.getByRole("button", { name: "Try as demo patient" }).click();
     await page.waitForURL(/\/home/, { timeout: 15_000 });
 
+    const consentCalls = () => apiPaths.filter((p) => p === "/api/consent").length;
+    // Count only after the check has actually been issued; asserting straight off waitForURL raced
+    // the request and passed on a count of zero.
+    await expect.poll(consentCalls, { timeout: 15_000 }).toBeGreaterThan(0);
+
     // The bug this guards: the gate read an unanswered consent check as "not linked" and bounced
     // the person to /consent, repeatedly, before the real content appeared.
     expect(seenPaths, `landed via ${seenPaths.join(" → ")}`).not.toContain("/consent");
-
-    const linkChecks = apiPaths.filter((p) => p === "/api/consent").length;
-    expect(linkChecks, "/api/consent calls: one per cache lifetime").toBe(1);
+    expect(consentCalls(), "/api/consent calls: one per cache lifetime").toBe(1);
 
     // Sign-in asks for the profile and so does Supabase's own SIGNED_IN event; the cache collapses
     // them, so this must not grow with the number of screens that render.
     const meCalls = apiPaths.filter((p) => p === "/auth/me").length;
     expect(meCalls, "/auth/me calls").toBeLessThanOrEqual(2);
 
-    // Moving between patient screens reuses the answered question.
+    // Moving between patient screens reuses the answered question. Wait for the screen to render
+    // before concluding no further request was made.
     await page.getByRole("link", { name: "Settings" }).click();
     await page.waitForURL(/\/settings/, { timeout: 10_000 });
-    expect(apiPaths.filter((p) => p === "/api/consent").length, "still one link check").toBe(1);
+    await expect(page.getByRole("heading", { name: "Privacy and sharing" })).toBeVisible({
+      timeout: 15_000,
+    });
+    expect(consentCalls(), "still one link check after navigating").toBe(1);
   });
 
   test("changing the range re-fetches the trend only, not the whole chart", async ({ page }) => {

@@ -27,14 +27,14 @@ export function LandingFooter() {
                       href={link.href}
                       rel="noopener noreferrer"
                       target="_blank"
-                      className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm text-muted-foreground hover:text-foreground"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center text-sm text-muted-foreground hover:text-foreground"
                     >
                       {link.label}
                     </Link>

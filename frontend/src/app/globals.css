@@ -122,3 +122,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * No scroll-reveal on the landing page. A fade tied to a scroll-linked timeline holds its first
+ * frame — opacity 0 — until the element enters the viewport, which means anything that captures the
+ * page without scrolling it (a full-page screenshot, print, a crawler prefetching the document) sees
+ * empty sections below the fold. The copy is the thing being judged; it stays visible.
+ */

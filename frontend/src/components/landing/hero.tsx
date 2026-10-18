@@ -26,8 +26,9 @@ export function Hero() {
           <p className="mt-3 text-sm text-muted-foreground">{hero.notice}</p>
         </div>
 
-        {/* Recorder and trend, side by side from 640px up, stacked below it. */}
-        <div className="mt-12 grid gap-6 sm:mt-16 sm:grid-cols-2 sm:items-end lg:mt-20">
+        {/* Recorder and trend, side by side from 640px up, stacked below it. Capped so the two
+            visuals read as one pair instead of drifting to opposite edges of a wide screen. */}
+        <div className="mt-12 grid max-w-3xl gap-6 sm:mt-16 sm:grid-cols-2 sm:items-center lg:mt-20">
           <PhoneMockup />
           <TrendChartMock />
         </div>

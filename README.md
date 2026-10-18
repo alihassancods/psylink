@@ -139,8 +139,8 @@ commit.
 - [x] L9 FAQ with honest answers
 - [x] L10 Footer with disclaimer and GitHub link
 - [x] L11 Title, description, Open Graph metadata
-- [ ] L12 Mobile layout at 360px
-- [ ] L13 Accessibility pass (keyboard, contrast, headings)
+- [x] L12 Mobile layout at 360px
+- [x] L13 Accessibility pass (keyboard, contrast, headings)
 - [ ] L14 Deployed on Vercel and tested on a phone
 
 **Never cut:** demo buttons, safety section, the "Not emergency care" line under the hero buttons.

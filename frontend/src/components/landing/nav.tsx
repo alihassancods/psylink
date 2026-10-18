@@ -51,7 +51,7 @@ export function LandingNav() {
 
 function NavKey({ link }: { link: (typeof nav.links)[number] }) {
   const className =
-    "inline-flex min-h-11 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
+    "inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
 
   if ("external" in link && link.external) {
     return (
