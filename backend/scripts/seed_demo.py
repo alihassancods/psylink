@@ -5,10 +5,10 @@
     uv run python scripts/seed_demo.py --create-auth-users
 
 `--create-auth-users` additionally creates the four logins in Supabase through GoTrue's admin
-API, which needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in the environment. Without it the
-profiles are seeded but nobody can sign in — the ids are derived from the emails, so creating
-those users by hand in the dashboard also works, as long as the resulting auth uid is the one
-this script derives (see `demo_accounts()` in the output).
+API, which needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` in the environment or in `backend/.env`
+(loaded here explicitly). Without it the profiles are seeded but nobody can sign in — the ids are
+derived from the emails, so creating those users by hand in the dashboard also works, as long as
+the resulting auth uid is the one this script derives (see `demo_accounts()` in the output).
 
 Demo passwords are generated per run and printed once. They are for a throwaway account on
 synthetic data; do not reuse one anywhere real.
@@ -24,6 +24,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import httpx
+from dotenv import load_dotenv
+
+# The app reads .env through pydantic-settings, which does not populate os.environ; this CLI
+# needs the same file visible to os.getenv, and real env vars still win (no overwrite).
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from app.services.demo_seed import (
     DEMO_USERS,
@@ -46,14 +51,17 @@ async def create_auth_users(*, url: str, service_key: str, password: str) -> lis
     """
     created: list[dict[str, str]] = []
     async with httpx.AsyncClient(
-        base_url=f"{url.rstrip('/')}/auth/admin/v1",
+        base_url=f"{url.rstrip('/')}/auth/v1",
         headers={"Authorization": f"Bearer {service_key}", "apikey": service_key},
         timeout=15.0,
     ) as client:
         for user in DEMO_USERS:
             response = await client.post(
-                "/users",
+                "/admin/users",
                 json={
+                    # GoTrue would assign a random uid; the seeded profile's id is uuid5-derived
+                    # and /auth/me looks it up by token sub, so the uid must be forced to match.
+                    "id": str(user.id),
                     "email": user.email,
                     "password": password,
                     "email_confirm": True,
@@ -64,10 +72,25 @@ async def create_auth_users(*, url: str, service_key: str, password: str) -> lis
                 body = response.json()
                 created.append({"email": user.email, "id": body.get("id", "?"), "role": user.role})
             elif response.status_code in (422, 400) and "already" in response.text.lower():
-                created.append({"email": user.email, "id": "(exists)", "role": user.role})
-            else:
                 created.append(
-                    {"email": user.email, "id": f"FAILED {response.status_code}", "role": user.role}
+                    {
+                        "email": user.email,
+                        "id": f"(exists — must be {user.id} or /auth/me will 401)",
+                        "role": user.role,
+                    }
+                )
+            else:
+                hint = (
+                    " (needs the SECRET service key, not the publishable one)"
+                    if response.status_code in (401, 403)
+                    else ""
+                )
+                created.append(
+                    {
+                        "email": user.email,
+                        "id": f"FAILED {response.status_code}{hint}",
+                        "role": user.role,
+                    }
                 )
     return created
 
@@ -95,6 +118,11 @@ async def main(argv: list[str] | None = None) -> int:
         password = _password_for("shared")
         users = await create_auth_users(url=url, service_key=key, password=password)
         print(json.dumps(users, indent=2) if args.json else json.dumps(users))
+        print(
+            f"\nDemo password for all four logins (printed once): {password}\n"
+            "Set it in frontend/.env.local as NEXT_PUBLIC_DEMO_PASSWORD to enable the demo buttons.",
+            file=sys.stderr,
+        )
 
     if args.purge:
         await purge_demo()
