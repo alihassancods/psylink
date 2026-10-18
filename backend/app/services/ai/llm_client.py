@@ -24,7 +24,14 @@ from app.core.config import get_settings
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT_SECONDS = 30.0
-MAX_TOKENS = 800
+
+#: On this provider `max_tokens` caps *reasoning* tokens too, not just the answer. The
+#: models that serve /chat/completions here think out loud, so a budget sized for the JSON
+#: object alone can be spent entirely on thinking and come back with empty content, or with
+#: `finish_reason="length"` and half an object. 2048 was measured against the real analysis
+#: prompt; a reply that still runs out is retried once at RETRY_MAX_TOKENS rather than lost.
+MAX_TOKENS = 2048
+RETRY_MAX_TOKENS = 4096
 TEMPERATURE = 0.1
 
 JSON_FORMAT: dict[str, str] = {"type": "json_object"}
@@ -35,6 +42,14 @@ _json_mode: bool | None = None
 
 class LLMError(Exception):
     """Terminal LLM failure. Message is sanitized: no prompt, no response content."""
+
+
+class _IncompleteReply(LLMError):
+    """The call succeeded but produced nothing usable: empty content, or cut off mid-JSON.
+
+    Raised so one retry with a larger budget can rescue it. It is still an ``LLMError``, so
+    a caller that does not retry degrades exactly as before.
+    """
 
 
 @dataclass(frozen=True)
@@ -81,12 +96,14 @@ def _sanitize(exc: Exception) -> str:
     return type(exc).__name__
 
 
-async def _chat_once(*, system: str, user: str, model: str, json_mode: bool) -> ChatResult:
+async def _chat_once(
+    *, system: str, user: str, model: str, json_mode: bool, max_tokens: int = MAX_TOKENS
+) -> ChatResult:
     client = _new_client()
     kwargs: dict[str, Any] = {
         "model": model,
         "temperature": TEMPERATURE,
-        "max_tokens": MAX_TOKENS,
+        "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -95,9 +112,15 @@ async def _chat_once(*, system: str, user: str, model: str, json_mode: bool) -> 
     if json_mode:
         kwargs["response_format"] = JSON_FORMAT
     completion = await client.chat.completions.create(**kwargs)
-    content = completion.choices[0].message.content
+    choice = completion.choices[0]
+    content = choice.message.content
     if not content:
-        raise LLMError("empty_completion")
+        # A reasoning model that spent the whole budget thinking. Retryable: the next
+        # attempt gets a larger ceiling, which is what actually unblocks it.
+        raise _IncompleteReply("empty_completion")
+    if getattr(choice, "finish_reason", None) == "length":
+        # Provably half an object — parsing it would be guesswork.
+        raise _IncompleteReply("truncated_completion")
     return ChatResult(content=content, model=getattr(completion, "model", None) or model)
 
 
@@ -112,6 +135,17 @@ async def chat_json_result(system: str, user: str, *, model: str | None = None) 
 
     try:
         return await _attempt(system=system, user=user, model=primary)
+    except _IncompleteReply as exc:
+        # Same model, bigger budget: the reply was well-formed, just starved of room.
+        logger.info("reply was incomplete (%s); retrying with a larger budget", exc)
+        try:
+            return await _attempt(
+                system=system, user=user, model=primary, max_tokens=RETRY_MAX_TOKENS
+            )
+        except _IncompleteReply as second:
+            raise LLMError(f"incomplete_completion: {second}") from second
+        except APIError as second:
+            raise LLMError(_sanitize(second)) from second
     except LLMError:
         raise
     except APIError as exc:
@@ -120,11 +154,15 @@ async def chat_json_result(system: str, user: str, *, model: str | None = None) 
         logger.warning("primary model failed with %s; trying fallback model", _sanitize(exc))
         try:
             return await _attempt(system=system, user=user, model=fallback)
+        except _IncompleteReply as second:
+            raise LLMError(f"incomplete_completion: {second}") from second
         except Exception as second:
             raise LLMError(_sanitize(second)) from second
 
 
-async def _attempt(*, system: str, user: str, model: str) -> ChatResult:
+async def _attempt(
+    *, system: str, user: str, model: str, max_tokens: int = MAX_TOKENS
+) -> ChatResult:
     """One model attempt; may consume a second call when JSON mode gets rejected.
 
     ``_json_mode`` is True-or-unprobed here: only an explicit rejection (False) turns
@@ -133,14 +171,20 @@ async def _attempt(*, system: str, user: str, model: str) -> ChatResult:
     global _json_mode
     try:
         return await _chat_once(
-            system=system, user=user, model=model, json_mode=_json_mode is not False
+            system=system,
+            user=user,
+            model=model,
+            json_mode=_json_mode is not False,
+            max_tokens=max_tokens,
         )
     except BadRequestError as exc:
         if _json_mode is False or not _is_json_mode_rejection(exc):
             raise
         logger.info("provider rejected response_format; falling back to prompt-only JSON")
         _json_mode = False
-        return await _chat_once(system=system, user=user, model=model, json_mode=False)
+        return await _chat_once(
+            system=system, user=user, model=model, json_mode=False, max_tokens=max_tokens
+        )
 
 
 async def chat_json(system: str, user: str, *, model: str | None = None) -> str:

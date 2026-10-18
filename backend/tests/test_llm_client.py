@@ -205,9 +205,96 @@ async def test_sdk_kwargs_via_mocked_openai(monkeypatch: pytest.MonkeyPatch) -> 
     result = await chat_json_result("SYS-P", "USER-P")
     assert result.content == "{}"
     assert captured["temperature"] == llm_client.TEMPERATURE <= 0.2
-    assert captured["max_tokens"] == 800
+    assert captured["max_tokens"] == llm_client.MAX_TOKENS
     assert captured["response_format"] == {"type": "json_object"}
     assert captured["messages"] == [
         {"role": "system", "content": "SYS-P"},
         {"role": "user", "content": "USER-P"},
     ]
+
+
+# --- incomplete replies: the reasoning-token trap ------------------------------------
+# On this provider max_tokens also caps reasoning, so a thinking model can return no
+# content, or half a JSON object with finish_reason="length". Both are rescued by one
+# retry at a larger budget, and become an LLMError if that fails too.
+
+
+def completion(*, content, finish_reason="stop", model="deepseek/deepseek-v4-flash"):
+    message = SimpleNamespace(content=content)
+    choice = SimpleNamespace(message=message, finish_reason=finish_reason)
+    return SimpleNamespace(model=model, choices=[choice])
+
+
+class FakeCompletions:
+    def __init__(self, replies: list[Any]) -> None:
+        self.replies = list(replies)
+        self.kwargs: list[dict[str, Any]] = []
+
+    async def create(self, **kwargs: Any) -> Any:
+        self.kwargs.append(kwargs)
+        reply = self.replies[min(len(self.kwargs) - 1, len(self.replies) - 1)]
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+
+def patch_openai(monkeypatch: pytest.MonkeyPatch, replies: list[Any]) -> FakeCompletions:
+    completions = FakeCompletions(replies)
+    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+    monkeypatch.setattr(llm_client, "AsyncOpenAI", lambda **_kw: fake_client)
+    return completions
+
+
+@pytest.mark.asyncio
+async def test_empty_content_is_an_incomplete_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    patch_openai(monkeypatch, [completion(content=None), completion(content="{}")])
+    with pytest.raises(llm_client._IncompleteReply):
+        await llm_client._chat_once(system="S", user="U", model="m", json_mode=True)
+
+
+@pytest.mark.asyncio
+async def test_truncated_reply_is_an_incomplete_reply(monkeypatch: pytest.MonkeyPatch) -> None:
+    patch_openai(monkeypatch, [completion(content='{"mood_s', finish_reason="length")])
+    with pytest.raises(llm_client._IncompleteReply, match="truncated_completion"):
+        await llm_client._chat_once(system="S", user="U", model="m", json_mode=True)
+
+
+@pytest.mark.asyncio
+async def test_incomplete_reply_is_retried_once_with_a_larger_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completions = patch_openai(
+        monkeypatch,
+        [completion(content=None), completion(content='{"risk_level": "low"}')],
+    )
+    result = await chat_json_result("SYS", "USER")
+    assert result.content == '{"risk_level": "low"}'
+    assert [call["max_tokens"] for call in completions.kwargs] == [
+        llm_client.MAX_TOKENS,
+        llm_client.RETRY_MAX_TOKENS,
+    ]
+    assert llm_client.RETRY_MAX_TOKENS > llm_client.MAX_TOKENS
+
+
+@pytest.mark.asyncio
+async def test_still_incomplete_after_the_retry_raises_llmerror(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    completions = patch_openai(monkeypatch, [completion(content=None), completion(content=None)])
+    with pytest.raises(LLMError, match="incomplete_completion") as info:
+        await chat_json_result("SYS", "USER")
+    assert len(completions.kwargs) == 2  # no third attempt
+    assert "SYS" not in str(info.value)
+
+
+@pytest.mark.asyncio
+async def test_incomplete_retry_does_not_switch_the_fallback_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Same model, more room — the fallback is for provider failures, not short budgets."""
+    completions = patch_openai(
+        monkeypatch,
+        [completion(content=None, model="primary/model"), completion(content="ok")],
+    )
+    await chat_json_result("SYS", "USER")
+    assert {call["model"] for call in completions.kwargs} == {"primary/model"}
