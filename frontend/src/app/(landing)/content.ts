@@ -36,9 +36,6 @@ export const hero = {
     "Record a one-minute check-in. Your psychologist or psychiatrist sees how your week went before your next visit.",
   /** Stated directly under the buttons, so nobody has to reach the footer for it. */
   notice: "Not emergency care. Demo data is synthetic.",
-  demoNote: "Waking up the demo, one moment...",
-  errorNote: "The demo did not start. Please try again.",
-  retryLabel: "Try again",
 } as const;
 
 /**
@@ -190,4 +187,11 @@ export const footer = {
 export const demoButtons = {
   patientLabel: "Try as patient",
   psychologistLabel: "Try as psychologist",
+  /**
+   * Shown while the demo starts. A cold free-tier backend really can take around a minute to answer
+   * the first request, and a button that appears to do nothing reads as a broken product.
+   */
+  waitingLabel: "Waking up the demo, one moment...",
+  errorNote: "The demo did not start. Please try again.",
+  retryLabel: "Try again",
 } as const;

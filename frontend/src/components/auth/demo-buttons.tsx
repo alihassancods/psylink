@@ -1,39 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-
 import { Button } from "@/components/ui/button";
-import { ApiError } from "@/lib/api";
-import { HOME_BY_ROLE, useSession } from "@/lib/auth/session-provider";
-import type { Role } from "@/types/api";
+import { useDemoLogin } from "@/lib/auth/use-demo-login";
 
 /**
- * Demo logins. The seeded accounts are synthetic data — nobody in them is a real patient — so
- * the buttons say "demo" everywhere they appear.
+ * Demo logins on the sign-in screen. The seeded accounts are synthetic data — nobody in them is a
+ * real patient — so the buttons say "demo" everywhere they appear. The behaviour lives in
+ * `useDemoLogin`, shared with the landing page.
  */
 export function DemoButtons() {
-  const { demoLogin } = useSession();
-  const router = useRouter();
-  const [pending, setPending] = useState<Role | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function onDemo(role: Role) {
-    setPending(role);
-    setError(null);
-    try {
-      const profile = await demoLogin(role);
-      router.replace(HOME_BY_ROLE[profile.role]);
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "Demo login did not work on this deployment.",
-      );
-    } finally {
-      setPending(null);
-    }
-  }
+  const { pending, error, run } = useDemoLogin();
 
   return (
     <div className="space-y-3 border-t border-border pt-4">
@@ -45,7 +21,7 @@ export function DemoButtons() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => void onDemo("patient")}
+          onClick={() => void run("patient")}
           disabled={pending !== null}
         >
           {pending === "patient" ? "Opening demo…" : "Try as demo patient"}
@@ -53,7 +29,7 @@ export function DemoButtons() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => void onDemo("clinician")}
+          onClick={() => void run("clinician")}
           disabled={pending !== null}
         >
           {pending === "clinician" ? "Opening demo…" : "Try as demo psychologist"}
