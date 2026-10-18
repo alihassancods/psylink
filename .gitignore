@@ -1,7 +1,19 @@
 .venv/
 __pycache__/
 *.pyc
+
+# env files — every kind: real, local, backup, staged, copied
 .env
+.env.*
+*.env
+*.env.*
+.envrc
+# ...but committed templates are documentation, not secrets
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+
 .pytest_cache/
 ruff_cache/
 .coverage

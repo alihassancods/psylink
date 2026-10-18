@@ -9,8 +9,17 @@ wheels/
 # Virtual environments
 .venv
 
-# Local secrets / env
+# Local secrets / env — every kind: real, local, backup, staged, copied
 .env
+.env.*
+*.env
+*.env.*
+.envrc
+# ...but committed templates are documentation, not secrets
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
 
 # Tool caches
 .pytest_cache/
