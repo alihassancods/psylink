@@ -65,7 +65,14 @@ SUICIDAL: Final[list[Trigger]] = [
         ),
         False,
     ),
-    (_compile(r"better {g}off {g}dead"), False),
+    (_compile(r"better {g}off {g}(?:dead | (?:if|when) {g}i {g}(?:was|were) {g}dead)"), False),
+    (
+        _compile(
+            r"wish {g}i {g}(?:had {g}not|hadn'?t|never) {g}(?:woken {g}up|got {g}up|been {g}born)"
+        ),
+        False,
+    ),
+    (_compile(r"(?:wouldn'?t|would {g}not) {g}mind {g}(?:if {g}i {g})?die"), False),
     # Passive ideation: preferring non-existence, wishing to be gone.
     (_compile(r"(?:i'?d|would|we'?re) {g}rather {g}be {g}(?:dead|gone|not {g}here)"), False),
     (_compile(r"(?:i'?m|im) {g}(?:glad|sorry|happier) {g}(?:dead|gone)"), False),
@@ -84,6 +91,21 @@ SUICIDAL: Final[list[Trigger]] = [
         False,
     ),
     (_compile(r"suicide {g}(?:note|method|methods|pills?|plan|attempt|urge|thoughts?)"), False),
+    # "I can't go on living like this" — the negation here IS the risk, so it is immune.
+    (
+        _compile(
+            r"(?:can'?t|cannot|can {g}not|won'?t|will {g}not|don'?t) {g}"
+            r"(?:go {g}on|keep|carry {g}on|keep {g}on) {g}(?:living|being {g}here|going|alive)"
+        ),
+        True,
+    ),
+    (
+        _compile(
+            r"(?:too {g}(?:much|tired|sad)|not {g}sure) {g}i {g}(?:want {g}to|will {g})?"
+            r"(?:be {g}here|survive|make {g}it)"
+        ),
+        True,
+    ),
     # Negation-immune: the negation is the content.
     (
         _compile(
@@ -129,6 +151,10 @@ SELF_HARM: Final[list[Trigger]] = [
         False,
     ),
     (_compile(r"self {G}harm\w*"), False),
+    # A quantity of pills, not adherence: "I took my pills" must never fire.
+    (_compile(r"(?:handful|packet|box|bottle) {g}of {g}(?:pills|tablets)"), False),
+    (_compile(r"took {g}(?:all {g}(?:my|the )?|a {g}full {g}box {g}of )?(?:pills|tablets) {g}"
+              r"(?:to {g}end|yesterday|last {g}night|again|on {g}\w+)"), False),
     (_compile(r"over\s?dos\w*"), False),
     (
         _compile(
@@ -171,7 +197,7 @@ TRIGGERS: Final[list[Trigger]] = [*SUICIDAL, *SELF_HARM, *HARMING_OTHERS]
 
 # --- Idiomatic readings of otherwise-triggering phrases ---------------------------------------
 IDIOMS: Final[list[re.Pattern[str]]] = [
-    _compile(r"(?:is|was|were|'s|'ll) {g}killing {g}(?:me|us)\b"),
+    _compile(r"(?:is|was|were|'s|'ll|been|'ve {g}been) {g}killing {g}(?:me|us)\b"),
     _compile(r"this [a-z]+ {g}is {g}killing {g}me"),
     _compile(r"killing {g}it\b"),
     _compile(

@@ -39,8 +39,15 @@ Risk levels (choose the higher one whenever you are unsure between two):
 - "high": the patient expresses self-harm, suicide, wanting to die, or an intent to harm
   other people. This includes plans, methods, or "I wish I weren't here".
 - "moderate": hopelessness, feeling trapped, severe distress, saying they cannot cope or
-  cannot go on, or a big drop in functioning with clear distress.
-- "low": anything else - ordinary stress, tiredness, or low mood without the above.
+  cannot go on, or a big drop in functioning with clear distress. Symptoms the patient
+  describes as happening most days for a week or more are moderate, as is distress that is
+  visibly interfering with work, study, sleep, eating, or looking after other people - crying
+  daily, barely sleeping, skipping meals, or withdrawing from everyone all count.
+- "low": ordinary stress, tiredness, or low mood that the patient still describes as
+  manageable and that is not displacing any of the above.
+
+Never report "low" alongside a description of sustained distress: if the patient says they
+are struggling every day, the honest reading is "moderate".
 
 Shape of the JSON object:
 {_JSON_SHAPE}
