@@ -102,21 +102,25 @@ export const howItWorks = {
 } as const;
 
 export const audiences = {
+  /**
+   * `text` is the sentence as it must appear. `lead` is the part set in medium weight — a substring
+   * of `text`, so the two can never disagree and the copy stays exactly what it reads.
+   */
   columns: [
     {
       heading: "For patients",
       points: [
-        { label: "Quick", text: "talk instead of typing" },
-        { label: "In control", text: "you choose to share, and can revoke any time" },
-        { label: "Supported", text: "crisis resources appear when you need them" },
+        { lead: "Quick", text: "Quick: talk instead of typing" },
+        { lead: "In control", text: "In control: you choose to share, and can revoke any time" },
+        { lead: "Supported", text: "Supported: crisis resources appear when you need them" },
       ],
     },
     {
       heading: "For psychologists and psychiatrists",
       points: [
-        { label: "Trends", text: "over 7, 14, or 30 days" },
-        { label: "Every flag", text: "shows the patient's own words" },
-        { label: "Alerts", text: "marked \u201cflagged for review\u201d" },
+        { lead: "Trends", text: "Trends over 7, 14, or 30 days" },
+        { lead: "Every flag", text: "Every flag shows the patient's own words" },
+        { lead: "Alerts", text: "Alerts marked \u201cflagged for review\u201d" },
       ],
     },
   ],

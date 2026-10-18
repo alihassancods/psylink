@@ -129,15 +129,15 @@ one-file edit. One step at a time; after each step run lint, typecheck and tests
 commit.
 
 - [x] L1 content.ts with all copy
-- [ ] L2 Nav and hero with both demo buttons
-- [ ] L3 Demo buttons log in and redirect, with "waking up" and error states
-- [ ] L4 Problem section
-- [ ] L5 How it works (4 steps)
-- [ ] L6 Patient and psychologist/psychiatrist columns
-- [ ] L7 Safety and privacy section with crisis resources link
-- [ ] L8 Demo call-to-action section
-- [ ] L9 FAQ with honest answers
-- [ ] L10 Footer with disclaimer and GitHub link
+- [x] L2 Nav and hero with both demo buttons
+- [x] L3 Demo buttons log in and redirect, with "waking up" and error states
+- [x] L4 Problem section
+- [x] L5 How it works (4 steps)
+- [x] L6 Patient and psychologist/psychiatrist columns
+- [x] L7 Safety and privacy section with crisis resources link
+- [x] L8 Demo call-to-action section
+- [x] L9 FAQ with honest answers
+- [x] L10 Footer with disclaimer and GitHub link
 - [ ] L11 Title, description, Open Graph metadata
 - [ ] L12 Mobile layout at 360px
 - [ ] L13 Accessibility pass (keyboard, contrast, headings)
