@@ -102,11 +102,13 @@ SUICIDAL: Final[list[Trigger]] = [
     ),
     (
         _compile(
-            r"no {G}(?:reason|point|purpose|meaning|way) {g}to {g}(?:live|be {g}here|"
-            r"go {g}on|going {g}on|keep {g}living|exist)"
+            r"no {G}(?:reason|point|purpose|meaning|way) {G}(?:to|in|for) {G}(?:live|living|life|"
+            r"be {g}here|go {g}on|going {g}on|keep {g}living|exist)"
         ),
         True,
     ),
+    (_compile(r"nothing {g}to {g}live {g}for"), True),
+    (_compile(r"(?:not|no) {g}worth {g}(?:living|being {g}here|here|it)"), True),
     (
         _compile(
             r"(?:too|way {g}too) {g}(?:tired|sad|low|much) {g}to {g}(?:live|go {g}on|"

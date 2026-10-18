@@ -39,6 +39,14 @@ POSITIVE_CASES = [
     "i'm having \u201csuicial\u201d thoughts",  # curly quotes + typo
     "I keep having suacial thoughts",  # typo
     "I dont want to live anymore",
+    # Hopelessness phrasings: the preposition and the noun both vary, and a verbose regex
+    # silently drops a literal space, so these are pinned rather than assumed.
+    "there is no point in going on",
+    "no purpose in living",
+    "no meaning to life",
+    "nothing to live for",
+    "it is not worth living",
+    "I'm too tired to go on",
     # A negation in one clause must not silence a risk statement in the next.
     "I'm not sleeping and I want to kill myself",
     "I'm not angry, I want to die",
