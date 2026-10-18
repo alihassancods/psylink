@@ -55,6 +55,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Backend limit on the approved text, so the UI can stop at the same place the API would. */
+export const MAX_TEXT_CHARS = 20_000;
+
 /**
  * Codes that mean "speech-to-text will not work on this attempt" — the check-in flow switches
  * to the typed fallback for any of them, and for 400/413/429/5xx generally.

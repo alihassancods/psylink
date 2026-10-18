@@ -103,10 +103,10 @@ for setup.
 - [x] F2 Supabase auth, API client, role guards
 - [x] F3 Login/signup with demo buttons
 - [x] F4 Consent and invite-code screens
-- [ ] F5 Recorder with mic permission flow and typed fallback
-- [ ] F6 Transcript review and submit
-- [ ] F7 Result screen and crisis card
-- [ ] F8 "Need help now?" link and footer notice on all patient screens
+- [x] F5 Recorder with mic permission flow and typed fallback
+- [x] F6 Transcript review and submit
+- [x] F7 Result screen and crisis card
+- [x] F8 "Need help now?" link and footer notice on all patient screens
 - [ ] F9 Patient history and settings (revoke, delete)
 - [ ] F10 Clinician patient list with risk badges
 - [ ] F11 Patient detail: trend charts and timeline

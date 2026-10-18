@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ export function ConsentView() {
           <p className="text-sm text-muted-foreground">
             You can stop that any time. Your care team sees only what you choose to share.
           </p>
+          <Button asChild size="lg" className="w-full">
+            <Link href="/checkin">Start a check-in</Link>
+          </Button>
         </CardContent>
       </Card>
     );
