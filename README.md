@@ -168,49 +168,6 @@ This is a hackathon build. The full list is in [`backend/README.md`](backend/REA
 6. Penetration testing of the invite flow and the RLS matrix.
 7. Jurisdiction-specific review of the consent text.
 
-## Progress
-
-### Backend
-
-Complete and tested: speech to text, the combined analysis pipeline, consent and provider linking, alerts with email and dedupe, patient history, provider views, demo seeding, a safety evaluation wired into CI, and a verified container image.
-
-### Frontend
-
-- [x] F1 Scaffold, Tailwind, shadcn, design tokens, `.env.example`
-- [x] F2 Supabase auth, API client, role guards
-- [x] F3 Login and signup with demo buttons
-- [x] F4 Consent and invite-code screens
-- [x] F5 Recorder with mic permission flow and typed fallback
-- [x] F6 Transcript review and submit
-- [x] F7 Result screen and crisis card
-- [x] F8 “Need help now?” link and footer notice on all patient screens
-- [x] F9 Patient history and settings (revoke, delete)
-- [x] F10 Provider patient list with risk badges
-- [x] F11 Patient detail: trend charts and timeline
-- [x] F12 Check-in detail with evidence highlight and AI label
-- [x] F13 Alerts panel with acknowledge
-- [x] F14 Loading, empty, and error states everywhere
-- [x] F15 Mobile (360px) and accessibility pass
-- [ ] F16 Unit tests and smoke test
-- [ ] F17 Vercel deploy, tested on a phone
-
-### Landing page
-
-- [x] L1 Content and copy
-- [x] L2 Navigation and hero with both demo buttons
-- [x] L3 Demo buttons with waking-up and error states
-- [x] L4 Problem section
-- [x] L5 How it works section
-- [x] L6 Patient and psychologist/psychiatrist columns
-- [x] L7 Safety and privacy section with crisis resources link
-- [x] L8 Demo call-to-action section
-- [x] L9 FAQ with honest answers
-- [x] L10 Footer with disclaimer and GitHub link
-- [x] L11 Title, description, and Open Graph metadata
-- [x] L12 Mobile layout at 360px
-- [x] L13 Accessibility pass
-- [ ] L14 Deployed on Vercel and tested on a phone
-
 **Never cut:** consent, crisis card, “Need help now?” link, evidence highlight, demo buttons, and loading/error states.
 
 ## Disclaimer
