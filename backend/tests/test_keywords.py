@@ -39,11 +39,18 @@ POSITIVE_CASES = [
     "i'm having \u201csuicial\u201d thoughts",  # curly quotes + typo
     "I keep having suacial thoughts",  # typo
     "I dont want to live anymore",
+    # A negation in one clause must not silence a risk statement in the next.
+    "I'm not sleeping and I want to kill myself",
+    "I'm not angry, I want to die",
+    "I have a job and a family but I want to end my life",
+    "not much energy today, honestly I'd rather be dead",
 ]
 
 # None of these should fire: negated, idiomatic, or simply unrelated.
 NEGATIVE_CASES = [
     "I'm not thinking of hurting myself",
+    "I'm not thinking about hurting myself anymore",
+    "it's not that I want to die, I'm just exhausted",
     "I will never hurt myself, I promise",
     "I have not wanted to die since I started therapy",
     "it's not that I want to die",

@@ -25,7 +25,12 @@ Trigger = tuple[re.Pattern[str], bool]  # (pattern, negation_immune)
 
 _GAP = r"[\s.,;:!?\-']+"
 _OPT_GAP = r"[\s.,;:!?\-']*"
-_BOUNDARIES = re.compile(r"[.!?:]|;")
+# A negation only governs its own clause: punctuation and conjunctions both end its reach,
+# so "I'm not sleeping and I want to die" keeps the risk statement un-negated.
+_CLAUSE_BREAK = re.compile(
+    r"[.;:!?,]|\b(?:and|but|so|yet|or|although|though|because|since|while|then|however|"
+    r"also|when|whenever|if|after|before|until|plus|anyway|instead|meanwhile)\b"
+)
 
 
 def _compile(pattern: str) -> re.Pattern[str]:
@@ -51,6 +56,11 @@ SUICIDAL: Final[list[Trigger]] = [
     (_compile(r"wish(?:ed)? {g}i {g}(?:was|were|had {g}never|never {g}was) "
               r"{g}(?:dead|been {g}dead|never {g}born|existed)"), False),
     (_compile(r"better {g}off {g}dead"), False),
+    # Passive ideation: preferring non-existence, wishing to be gone.
+    (_compile(r"(?:i'?d|would|we'?re) {g}rather {g}be {g}(?:dead|gone|not {g}here)"), False),
+    (_compile(r"(?:i'?m|im) {g}(?:glad|sorry|happier) {g}(?:dead|gone)"), False),
+    (_compile(r"wish {g}i {g}(?:wasn'?t|weren'?t|was {g}not|were {g}not) {g}(?:here|alive|"
+              r"born|existing)"), False),
     (_compile(r"(?:going {g}to|planned? {g}to|planning {g}to|intend(?:s|ed)? {g}to|"
               r"thinking {g}about|considering) {g}(?:killing|kill|die|dying|ending)"), False),
     (_compile(r"suicide {g}(?:note|method|methods|pills?|plan|attempt|urge|thoughts?)"), False),
@@ -135,15 +145,15 @@ def normalise(text: str) -> str:
 
 
 def _before_clause(text: str, start: int) -> str:
-    """The same clause as ``text[start:]``, limited to the window behind the trigger."""
+    """The words just before the trigger, cut off at the nearest clause boundary.
+
+    Boundaries are punctuation *and* conjunctions: without the latter, "I'm not sleeping
+    and I want to die" would let "not" suppress a separate risk statement two clauses away.
+    """
     boundary = 0
-    for match in _BOUNDARIES.finditer(text[:start]):
+    for match in _CLAUSE_BREAK.finditer(text[:start]):
         boundary = match.end()
-    # Commas also separate clauses for negation purposes.
-    comma = text.rfind(",", 0, start)
-    boundary = max(boundary, comma + 1 if comma != -1 else 0)
-    window = text[boundary:start]
-    return window[-NEGATION_WINDOW:]
+    return text[boundary:start][-NEGATION_WINDOW:]
 
 
 def _overlaps_idiom(text: str, start: int, end: int) -> bool:
