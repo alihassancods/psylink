@@ -146,7 +146,15 @@ select column_name from information_schema.columns
 where table_schema='public' and table_name='checkins' order by ordinal_position;
 ```
 
-…which should end with `analysis_status` and `transcript`.
+…which should end with `analysis_status` and `transcript`. Or verify it yourself, read-only:
+
+```bash
+uv run python scripts/check_schema.py        # exits 1 and names every missing object
+```
+
+Confirmed with that tool just now: hosted is missing exactly those three objects
+(`checkins.analysis_status`, `checkins.transcript`, and the `checkin_analysis_status` enum type);
+local has all of them plus everything else.
 
 **How this happened, stated plainly:** you ran the first SQL block in Supabase, but my idempotency
 checks — written against `app.db.session.engine`, which reads `DATABASE_URL` from your `.env`

@@ -390,7 +390,20 @@ supabase db push                # a hosted project: standard supabase/migrations
 ```
 
 Every statement is written to be re-runnable (`if not exists`, `create or replace`,
-`drop policy if exists`), so pushing files that Alembic already applied changes nothing. The alembic
+`drop policy if exists`), so pushing files that Alembic already applied changes nothing.
+
+Check what a given database actually has before deploying — the hosted project is dashboard-managed
+and can drift from the code without any test noticing, because the suite pins itself to the local
+docker database:
+
+```bash
+uv run python scripts/check_schema.py           # the database in DATABASE_URL
+uv run python scripts/check_schema.py --local   # the docker-compose database
+```
+
+Read-only; exits 1 and names every missing table, column, type, function, or policy. The `--local`
+flag builds its own engine on purpose: `app.db.session` creates the app engine at import time, so
+setting `DATABASE_URL` afterwards would check the wrong database in silence. The alembic
 revision splits each file into statements because asyncpg prepares one command at a time; that is
 `app/services/sql_script.py`, which understands dollar-quoted bodies, string literals, and comments.
 
