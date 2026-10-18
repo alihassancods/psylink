@@ -108,7 +108,7 @@ for setup.
 - [x] F7 Result screen and crisis card
 - [x] F8 "Need help now?" link and footer notice on all patient screens
 - [x] F9 Patient history and settings (revoke, delete)
-- [ ] F10 Clinician patient list with risk badges
+- [x] F10 Clinician patient list with risk badges
 - [ ] F11 Patient detail: trend charts and timeline
 - [ ] F12 Check-in detail with evidence highlight and AI label
 - [ ] F13 Alerts panel with acknowledge
